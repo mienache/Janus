@@ -13,4 +13,3 @@ RUN adduser --ingroup sudo janus
 RUN echo 'janus ALL=(ALL) NOPASSWD:ALL'>/etc/sudoers
 USER janus
 
-COPY Janus /home/janus
