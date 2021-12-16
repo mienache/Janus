@@ -22,7 +22,7 @@ for (auto &func: jc.functions){
         uint64_t local_inst_count = 0;
         Instruction *End = B.instrs+ B.size;
         for(auto *I=B.instrs; I < End;I++){
-            if( get_opcode(I) == Instruction::Inc){
+            if( get_opcode(I) == Instruction::Load){
                 local_inst_count = local_inst_count + 1;
             }
         }
