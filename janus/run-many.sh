@@ -8,14 +8,14 @@ then stdin=$(readlink -n /proc/self/fd/0)
 fi
 echo $stdin
 echo $@
-num=10
+num=3
 for i in $(seq $num)
 do
     if [ -t 0 ]
     then runtimes[$i]=$(/usr/bin/time -f '%e' $@ 2>&1 | tail -n 1)
     else runtimes[$i]=$(/usr/bin/time -f '%e' $@ <$stdin | tail -n 1)
     fi
-    echo $i "${runtimes[$i]}"
+    # echo $i "${runtimes[$i]}"
 done
 
 # https://stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash

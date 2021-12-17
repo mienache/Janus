@@ -5,7 +5,7 @@ my_dir="$(dirname "$0")"
 source $my_dir/janus_header
 
 #switch to older version of dynamoRIO for paralleliser
-TOOLDIR="$DIR/../external/DynamoRIO-Linux-5.1.0-RC1/"
+TOOLDIR="$DIR/../external/DynamoRIO-Linux-7.0.0-RC1/"
 
 function usage {
     echo "Guided Binary Paralleliser without static analysis"
@@ -26,4 +26,4 @@ shift
 hintfile="$binfile.jrs"
 bininstr="$binfile.loop"
 
-gdb --args $TOOLDIR/bin64/drrun -ops "-no_private_loader -thread_private" -c $GBRLIB/libjpar.so @$hintfile @$numthreads @1 -- $binfile $@
+$TOOLDIR/bin64/drrun -ops "-no_private_loader -thread_private" -c $GBRLIB/libjpar.so @$hintfile @$numthreads @1 -- $binfile $@
