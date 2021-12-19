@@ -13,4 +13,8 @@ RUN adduser --ingroup sudo janus
 RUN echo 'janus ALL=(ALL) NOPASSWD:ALL'>/etc/sudoers
 USER janus
 
-WORKDIR "/workspace"
+# Add paths to janus_project/bin and janus_project/janus
+RUN echo 'export PATH=/janus_project/bin:$PATH'>>/home/janus/.bashrc
+RUN echo 'export PATH=/janus_project/janus/:$PATH'>>/home/janus/.bashrc
+
+WORKDIR "/janus_project"
