@@ -70,14 +70,18 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
+
     do {
         rule_opcode = rule->opcode;
+        cout << "Rule opcode is: " << rule->opcode << "\n";
 
         call_rule_handler(rule_opcode, janus_context);
 
         //This basic block may be annotated with more rules
         rule = rule->next;
     }while(rule);
+
+    cout << "Do-while done\n";
 
     return DR_EMIT_DEFAULT;
 }

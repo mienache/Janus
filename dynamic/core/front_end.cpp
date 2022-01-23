@@ -199,6 +199,7 @@ load_static_rules(char *rule_path, uint64_t base)
 static void
 fill_in_hashtable(hashtable_t *table, uint32_t channel, RRule *instr, uint32_t size, JMode mode, uint64_t base)
 {
+    cout << "Filling in hashtable: " << size << "num rules..\n";
     RRule *query, *curr, *next;
     RRule *prev = NULL;
     PCAddress start_addr;

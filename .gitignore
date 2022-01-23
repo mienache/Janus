@@ -1,3 +1,7 @@
 build/*
 bin/*
 lib/*
+external/*
+tests/*
+html/*
+docs/*

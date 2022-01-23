@@ -18,18 +18,17 @@ void ruleGenerationTemplate(JanusContext &jc) {
 /*--- Static RuleGen Start ---*/
 for (auto &func: jc.functions){
     livenessAnalysis(&func);
-    for (auto &B: func.blocks){
-        uint64_t local_inst_count = 0;
-        Instruction *End = B.instrs+ B.size;
-        for(auto *I=B.instrs; I < End;I++){
-            if( get_opcode(I) == Instruction::Load){
-                local_inst_count = local_inst_count + 1;
-            }
+    for (auto &I: func.instrs){
+        if( get_opcode(I) == Instruction::Load){
+            bitmask = func.liveRegIn[I.id].bits;
+            insertCustomRule<Instruction>(1,I,1, true, 0, bitmask);
         }
-        if(local_inst_count > 0){
-            bitmask = func.liveRegIn[B.bid].bits;
-            insertCustomRule<BasicBlock>(1,B,4, true, 0, bitmask);
-        }
+    }
+}
+for (auto &F: jc.functions){
+    if (&F == jc.main) {
+        cout << "Found main\n";
+        insertCustomRule<Function>(2,F,4, true, 0, bitmask);
     }
 }
 

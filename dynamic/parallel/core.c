@@ -120,6 +120,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
                 if (!janus_status) break;
                 insert_function_call_as_application(janus_context,janus_create_threads);
                 /* Special case: only 1 thread */
+                printf("Number of threads is: %d\n", rsched_info.number_of_threads);
                 if (rsched_info.number_of_threads == 1) {
                     janus_generate_loop_code(drcontext, oracle[0]);
                     shared->code_ready = 1;

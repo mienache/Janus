@@ -106,6 +106,7 @@ generateRules(JanusContext *gc)
  * separate rule needs to be generated for each IN entry */
 void insertRule(uint32_t channel, RewriteRule rule, BasicBlock *block)
 {
+    cout << "Inserting rule into channel " << channel << "\n";
     RuleCluster &cluster = rewriteRules[channel];
 
     //And check if the block has been modified
