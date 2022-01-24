@@ -2,6 +2,7 @@
 #include <iostream>
 #include "janus_api.h"
 #include "dsl_core.h"
+#include "dsl_thread_manager.h"
 
 #include "func.h"
 
@@ -15,7 +16,14 @@ void handler_1(JANUS_CONTEXT){
     instrlist_meta_preinsert(bb, trigger, XINST_CREATE_store(drcontext, OPND_CREATE_ABSMEM((byte *)&inst_count, OPSZ_8), opnd_create_reg(DR_REG_RAX)));
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_1);
 }
-void handler_2(JANUS_CONTEXT){
+
+// #define JANUS_CONTEXT void *drcontext, instrlist_t *bb, RRule *rule, void *tag
+void handler_2(JANUS_CONTEXT) {
+    rsched_info.number_of_threads = 2;
+    create_threads();
+}
+
+void old_handler_2(JANUS_CONTEXT){
     instr_t * trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
     if(inRegSet(bitmask,8)) dr_save_reg(drcontext,bb,trigger,DR_REG_RDI,SPILL_SLOT_1);

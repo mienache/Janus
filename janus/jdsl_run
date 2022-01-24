@@ -31,5 +31,6 @@ fi
 
 $JANUSBIN/analyze -c $binfile
 
-$TOOLDIR/bin64/drrun -ops "-opt_cleancall 3" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*
+$TOOLDIR/bin64/drrun -ops "-opt_cleancall 0 -thread_private" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*
+#gdb --args $TOOLDIR/bin64/drrun -debug -ops "-opt_cleancall 3" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*
 

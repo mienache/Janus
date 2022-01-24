@@ -6,7 +6,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib/")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/")
 
 set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS "-fpermissive -std=c++0x")
+set(CMAKE_CXX_FLAGS "-fpermissive")
+set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-DJANUS_VERBOSE)
 
 set (CMAKE_CXX_STANDARD 11)

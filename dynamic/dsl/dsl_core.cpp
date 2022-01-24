@@ -81,7 +81,6 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         rule = rule->next;
     }while(rule);
 
-    cout << "Do-while done\n";
 
     return DR_EMIT_DEFAULT;
 }
