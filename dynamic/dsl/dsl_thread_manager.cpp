@@ -5,19 +5,13 @@
 #include "janus_api.h"
 
 
-void create_threads() {
-    const int num_threads = rsched_info.number_of_threads;
-    std::cout << "Creating " << num_threads << "threads\n";
+void create_checker_thread() {
+    std::cout << "In create checker thread\n";
 
-    for (int i = 0; i < rsched_info.number_of_threads - 1; ++i) {
-        const pid_t new_pid = fork();
-        if (!new_pid) {
-            // Stop child processes from creating others
-            break;
-        }
-
+    const pid_t new_pid = fork();
+    if (new_pid) {
         std::cout << "Process with PID = " << new_pid << " created\n";
     }
 
-    std::cout << num_threads << " threads created\n";
+    std::cout << "Check thread created!\n";
 }

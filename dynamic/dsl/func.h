@@ -14,7 +14,7 @@ using namespace std;
 void func_1();
 void func_2();
 extern uint64_t inst_count ;
-extern char L_3[];
+
 /*--- Function Global Declaration Finish ---*/
 void exit_routine();
 void init_routine();

@@ -8,19 +8,10 @@ using namespace std;
 #include <iostream>
 #include <stdint.h>
 uint64_t inst_count = 0;
-char L_3[] = "-------> Starting new function.";
+
 /*--- Global Var Decl End ---*/
 
 
-/*--- DSL Function Start ---*/
-void func_1(){
-    inst_count = inst_count + 1;
-}
-void func_2(){
-    print_str("-------> Starting new function.");
-}
-
-/*--- DSL Function Finish ---*/
 
 void exit_routine(){
     /*--- Termination Start ---*/

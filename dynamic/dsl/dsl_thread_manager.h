@@ -7,6 +7,6 @@
     TODO: this will need to change in the future probably to clone.
     TBD once we decide where the communication queue will be implemented.
 */
-void create_threads();
+void create_checker_thread();
 
 #endif

@@ -26,8 +26,8 @@ for (auto &func: jc.functions){
     }
 }
 for (auto &F: jc.functions){
-    if (&F == jc.main) {
-        cout << "Found main\n";
+    if( is_main_func(jc, F)){
+        
         insertCustomRule<Function>(2,F,4, true, 0, bitmask);
     }
 }

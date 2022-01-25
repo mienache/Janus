@@ -71,6 +71,10 @@ int get_opcode(Instruction *instr){
     return instr->opcode;
 }
 
+bool is_main_func(const JanusContext &jc, const Function &fun) {
+    return jc.main == &fun;
+}
+
 VarState*
 get_input(Instruction &instr, int index){
     return instr.inputs[index];
