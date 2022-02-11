@@ -1,3 +1,10 @@
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#include <iostream>
+
 #include "dsl_core.h"
 #include "dsl_handler.h"
 #include "func.h"
@@ -16,6 +23,8 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT);
 
 /* Handler table */
 void **htable = NULL;
+
+void create_shared_memory_area();
 
 DR_EXPORT void 
 dr_init(client_id_t id)
@@ -46,6 +55,33 @@ dr_init(client_id_t id)
         return;
     }
     IF_VERBOSE(dr_fprintf(STDOUT,"DynamoRIO client initialised\n"));
+
+    create_shared_memory_area();
+}
+
+void create_shared_memory_area()
+{
+    std::cout << "Creating shared memory" << std::endl;
+        
+    // ftok to generate unique key
+    key_t key = ftok("/janus",65);
+
+    // shmget returns an identifier in shmid
+    int shmid = shmget(key,1024,0666|IPC_CREAT);
+
+    // shmat to attach to shared memory
+    char *str = (char*) shmat(shmid,(void*)0,0);
+
+    *str++ = 'T';
+    *str++ = 'E';
+    *str++ = 'S';
+    *str++ = 'T';
+
+
+    std::cout << "Data written in shared memory" << std::endl;
+
+    //detach from shared memory
+    shmdt(str);
 }
 
 void new_janus_thread(void *drcontext) {
@@ -70,6 +106,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
+    printf("Current PID = %d\n", getpid());
 
     do {
         rule_opcode = rule->opcode;

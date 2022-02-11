@@ -1,5 +1,8 @@
 /* JANUS Client for automatic paralleliser */
 
+#include <sys/types.h>
+#include <unistd.h>
+
 /* Header file to implement a JANUS client */
 #include "janus_api.h"
 
@@ -101,6 +104,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
     bool mustEndTrace = false;
+
+    printf("Current PID = %d\n", getpid());
     do
     {
 #ifdef JANUS_VERBOSE
