@@ -7,6 +7,7 @@
 
 #include "dsl_core.h"
 #include "dsl_handler.h"
+#include "dsl_ipc.h"
 #include "func.h"
 
 static dr_emit_flags_t
@@ -64,24 +65,25 @@ void create_shared_memory_area()
     std::cout << "Creating shared memory" << std::endl;
         
     // ftok to generate unique key
-    key_t key = ftok("/janus",65);
+    key_t key = ftok("/janus", 22);
 
     // shmget returns an identifier in shmid
     int shmid = shmget(key,1024,0666|IPC_CREAT);
 
-    // shmat to attach to shared memory
-    char *str = (char*) shmat(shmid,(void*)0,0);
+    // acquire the memory
+    BasicQueue *q = (BasicQueue*) shmat(shmid, (void*) 0, 0);
 
-    *str++ = 'T';
-    *str++ = 'E';
-    *str++ = 'S';
-    *str++ = 'T';
+    // create the basic queue at the specified location 
+    new(q) BasicQueue;
 
-
-    std::cout << "Data written in shared memory" << std::endl;
+    // populate the queue with some mock values
+    *(q->end) = 1;
+    q->end++;
+    *(q->end) = 7;
+    q->end++;
 
     //detach from shared memory
-    shmdt(str);
+    shmdt(q);
 }
 
 void new_janus_thread(void *drcontext) {

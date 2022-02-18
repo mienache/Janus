@@ -5,3 +5,5 @@ external/*
 tests/*
 html/*
 docs/*
+*.make
+*.cmake

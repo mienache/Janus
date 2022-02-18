@@ -6,6 +6,7 @@
 #include <sys/shm.h>
 
 #include "janus_api.h"
+#include "dsl_ipc.h"
 
 void check_shared_memory();
 
@@ -39,13 +40,18 @@ void check_shared_memory()
     int shmid = shmget(key,1024,0666|IPC_CREAT);
 
     // shmat to attach to shared memory
-    char *str = (char*) shmat(shmid,(void*)0,0);
+    BasicQueue *q = (BasicQueue*) shmat(shmid, (void*) 0, 0);
 
-    printf("Data read from memory: %s\n",str);
+    // consume data from the queue
+    while (q->begin != q->end) {
+        std::cout << "Reading from q->begin = " << *(q->begin) << std::endl;
+        q->begin++;
+    }
 
     //detach from shared memory
-    shmdt(str);
+    shmdt(q);
 
     // destroy the shared memory
     shmctl(shmid,IPC_RMID,NULL);
+
 }
