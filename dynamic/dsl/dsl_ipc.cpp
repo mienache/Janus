@@ -1,8 +1,9 @@
-#include "dsl_ipc.h"
-
-#include <iostream>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+
+#include <iostream>
+
+#include "dsl_ipc.h"
 
 BasicQueue *IPC_QUEUE;
 
@@ -33,16 +34,22 @@ void create_shared_memory_area()
 void append_value(int val)
 {
     std::cout << "Adding value at IPC_QUEUE->end = " << IPC_QUEUE->end << std::endl;
-    std::cout << "Adding value " << val << std::endl;
+
     *(IPC_QUEUE->end) = val;
     IPC_QUEUE->end++;
+
+    std::cout << "Value added" << val << std::endl;
 }
 
 int consume_value()
 {
     std::cout << "Consuming value at IPC_QUEUE->begin = " << IPC_QUEUE->begin << std::endl;
+
+    while(IPC_QUEUE->begin == IPC_QUEUE->end); // The queue is empty, must wait
+
     int ret = *(IPC_QUEUE->begin);
     IPC_QUEUE->begin++;
+
     std::cout << "Consumed value " << ret << std::endl;
 
     return ret;
