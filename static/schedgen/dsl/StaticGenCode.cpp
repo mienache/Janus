@@ -16,12 +16,20 @@ uint64_t bitmask;
 
 void ruleGenerationTemplate(JanusContext &jc) {
 /*--- Static RuleGen Start ---*/
+
+std::cout << "LOAD IS " << Instruction::Load << std::endl;
+std::cout << "STORE IS " << Instruction::Store << std::endl;
 for (auto &func: jc.functions){
     livenessAnalysis(&func);
     for (auto &I: func.instrs){
+        std::cout << "Encountered instr " << get_opcode(I) << std::endl;
         if( get_opcode(I) == Instruction::Load){
             bitmask = func.liveRegIn[I.id].bits;
             insertCustomRule<Instruction>(1,I,1, true, 0, bitmask);
+        }
+        if( get_opcode(I) == Instruction::Load){
+            bitmask = func.liveRegIn[I.id].bits;
+            insertCustomRule<Instruction>(3,I,1, true, 0, bitmask);
         }
     }
 }

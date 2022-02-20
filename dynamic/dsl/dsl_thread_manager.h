@@ -1,6 +1,8 @@
 #ifndef __DSL_THREAD_MANAGER__
 #define __DSL_THREAD_MANAGER__
 
+extern bool CHECKER_THREAD_CREATED;
+
 /*
     Create the number of threads specified in `rsched_info.number_of_threads`.
     Currently the threads are created using `fork`.

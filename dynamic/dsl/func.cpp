@@ -15,6 +15,7 @@ uint64_t inst_count = 0;
 
 void exit_routine(){
     /*--- Termination Start ---*/
+    print_str("Num instructions:");
     print_u64(inst_count);
 
 /*--- Termination End ---*/

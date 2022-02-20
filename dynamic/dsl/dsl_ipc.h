@@ -1,6 +1,10 @@
 #ifndef __DSL_IPC__
 #define __DSL_IPC__
 
+#include <cstdint>
+
+void create_shared_memory_area();
+
 struct BasicQueue {
     int *begin; 
     int *end;
@@ -12,5 +16,13 @@ struct BasicQueue {
         end = v;
     }
 };
+
+extern BasicQueue *IPC_QUEUE;
+
+extern bool MAIN_THREAD;
+
+void append_value(int val);
+int consume_value();
+void communicate(uint64_t register_value);
 
 #endif

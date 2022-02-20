@@ -1,7 +1,5 @@
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 
 #include <iostream>
 
@@ -58,32 +56,6 @@ dr_init(client_id_t id)
     IF_VERBOSE(dr_fprintf(STDOUT,"DynamoRIO client initialised\n"));
 
     create_shared_memory_area();
-}
-
-void create_shared_memory_area()
-{
-    std::cout << "Creating shared memory" << std::endl;
-        
-    // ftok to generate unique key
-    key_t key = ftok("/janus", 22);
-
-    // shmget returns an identifier in shmid
-    int shmid = shmget(key,1024,0666|IPC_CREAT);
-
-    // acquire the memory
-    BasicQueue *q = (BasicQueue*) shmat(shmid, (void*) 0, 0);
-
-    // create the basic queue at the specified location 
-    new(q) BasicQueue;
-
-    // populate the queue with some mock values
-    *(q->end) = 1;
-    q->end++;
-    *(q->end) = 7;
-    q->end++;
-
-    //detach from shared memory
-    shmdt(q);
 }
 
 void new_janus_thread(void *drcontext) {

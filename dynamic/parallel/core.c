@@ -106,6 +106,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     bool mustEndTrace = false;
 
     printf("Current PID = %d\n", getpid());
+    printf("Current TLS.id = %d\n", tls->id);
     do
     {
 #ifdef JANUS_VERBOSE
