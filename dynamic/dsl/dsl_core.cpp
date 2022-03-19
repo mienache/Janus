@@ -84,7 +84,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     do {
         rule_opcode = rule->opcode;
-        cout << "Rule opcode is: " << rule->opcode << "\n";
+        // cout << "Rule opcode is: " << rule->opcode << "\n";
 
         call_rule_handler(rule_opcode, janus_context);
 

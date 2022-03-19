@@ -1,6 +1,7 @@
 /* Header file to implement a JANUS client */
 #include <cassert>
 #include <iostream>
+#include <iomanip>
 
 #include "dsl_core.h"
 #include "dsl_ipc.h"
@@ -21,9 +22,18 @@ void handler_1(JANUS_CONTEXT){
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_1);
 
     std::cout << "in handler 1" << std::endl;
+} 
+
+void msg() {
+    std::cout << "Just before clean call" << std::endl;
 }
 void handler_2(JANUS_CONTEXT){
     instr_t * trigger = get_trigger_instruction(bb,rule);
+    app_pc pc = instr_get_app_pc(trigger);
+    uint64_t val = static_cast<uint64_t>(*pc);
+    std::cout << "In handler 2 PC is " << std::hex << val << std::dec << std::endl;
+    std::cout << std::resetiosflags(std::ios::showbase);
+
     uint64_t bitmask = rule->reg1;
     if(inRegSet(bitmask,11)) dr_save_reg(drcontext,bb,trigger,DR_REG_R10,SPILL_SLOT_1);
     if(inRegSet(bitmask,12)) dr_save_reg(drcontext,bb,trigger,DR_REG_R11,SPILL_SLOT_2);
@@ -39,7 +49,7 @@ void handler_2(JANUS_CONTEXT){
     dr_save_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_11);
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
     instrlist_meta_preinsert(bb, trigger,INSTR_CREATE_push(drcontext, opnd_create_reg(DR_REG_RAX)));
-    dr_insert_clean_call(drcontext, bb, instrlist_first(bb), create_checker_thread, false, 0);
+    dr_insert_clean_call(drcontext, bb, instrlist_first(bb), create_checker_thread, false, 1, OPND_CREATE_INT64(val));
     instrlist_meta_preinsert(bb, trigger, INSTR_CREATE_pop(drcontext, opnd_create_reg(DR_REG_RAX)));
     if(inRegSet(bitmask,11)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R10,SPILL_SLOT_1);
     if(inRegSet(bitmask,12)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R11,SPILL_SLOT_2);

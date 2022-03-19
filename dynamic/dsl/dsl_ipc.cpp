@@ -1,5 +1,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <unistd.h>
+
 
 #include <iostream>
 
@@ -7,27 +9,13 @@
 
 BasicQueue *IPC_QUEUE;
 
-bool MAIN_THREAD = 1;
-extern bool CHECKER_THREAD_CREATED;
+std::map<pid_t, ThreadRole> pidToRole;
 
 void create_shared_memory_area()
 {
     std::cout << "Creating shared memory" << std::endl;
         
-    // ftok to generate unique key
-    key_t key = ftok("/janus", 22);
-
-    // shmget returns an identifier in shmid
-    int shmid = shmget(key,1024,0666|IPC_CREAT);
-
-    // acquire the memory
-    IPC_QUEUE = (BasicQueue*) shmat(shmid, (void*) 0, 0);
-
-    // create the basic queue at the specified location 
-    new(IPC_QUEUE) BasicQueue;
-
-    //detach from shared memory
-    // shmdt(IPC_QUEUE);
+    IPC_QUEUE = new BasicQueue;
 }
 
 
@@ -38,7 +26,7 @@ void append_value(int val)
     *(IPC_QUEUE->end) = val;
     IPC_QUEUE->end++;
 
-    std::cout << "Value added" << val << std::endl;
+    std::cout << "Value added " << val << std::endl;
 }
 
 int consume_value()
@@ -61,14 +49,14 @@ void communicate(uint64_t register_value) {
     std::cout << "---> In clean call: register_value = " << register_value << std::endl;
 
     static int cnt = 0;
-    if (!CHECKER_THREAD_CREATED) {
-        return;
-    }
 
-    if (MAIN_THREAD) {
+    if (pidToRole[getpid()] == ThreadRole::MAIN) {
+        std::cout << "Appending value " << register_value << std::endl;
         append_value(register_value);
     }
     else {
+        std::cout << "Consuming value " << register_value << std::endl;
+
         const int expected_value = consume_value();
         if (expected_value != register_value) {
             std::cout << "DIFF: " << expected_value << " != " << register_value << std::endl;

@@ -22,7 +22,6 @@ std::cout << "STORE IS " << Instruction::Store << std::endl;
 for (auto &func: jc.functions){
     livenessAnalysis(&func);
     for (auto &I: func.instrs){
-        std::cout << "Encountered instr " << get_opcode(I) << std::endl;
         if( get_opcode(I) == Instruction::Load){
             bitmask = func.liveRegIn[I.id].bits;
             insertCustomRule<Instruction>(1,I,1, true, 0, bitmask);
@@ -37,6 +36,8 @@ for (auto &F: jc.functions){
     if( is_main_func(jc, F)){
         
         insertCustomRule<Function>(2,F,4, true, 0, bitmask);
+
+        std::cout << "Inserting thread create rule at " << std::hex << std::dec << F.startAddress << std::endl;
     }
 }
 
