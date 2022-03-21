@@ -6,10 +6,9 @@
 #include <iostream>
 
 #include "dsl_ipc.h"
+#include "dsl_thread_manager.h"
 
 BasicQueue *IPC_QUEUE;
-
-std::map<pid_t, ThreadRole> pidToRole;
 
 void create_shared_memory_area()
 {
@@ -50,7 +49,11 @@ void communicate(uint64_t register_value) {
 
     static int cnt = 0;
 
-    if (pidToRole[getpid()] == ThreadRole::MAIN) {
+    std::cout << "Comunicating from thread " << gettid() << std::endl;
+
+    AppThread *app_thread = app_threads[gettid()];
+
+    if (app_thread->threadRole == ThreadRole::MAIN) {
         std::cout << "Appending value " << register_value << std::endl;
         append_value(register_value);
     }

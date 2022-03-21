@@ -5,12 +5,6 @@
 
 #include <cstdint>
 
-enum ThreadRole {
-    MAIN,
-    CHECKER
-};
-
-extern std::map<pid_t, ThreadRole> pidToRole;
 
 void create_shared_memory_area();
 

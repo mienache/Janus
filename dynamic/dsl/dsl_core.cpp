@@ -6,6 +6,7 @@
 #include "dsl_core.h"
 #include "dsl_handler.h"
 #include "dsl_ipc.h"
+#include "dsl_thread_manager.h"
 #include "func.h"
 
 static dr_emit_flags_t
@@ -59,7 +60,15 @@ dr_init(client_id_t id)
 }
 
 void new_janus_thread(void *drcontext) {
-   init_routine();
+    printf("New Janus TID = %d\n", gettid());
+    init_routine();
+    if (!MAIN_THREAD_REGISTERED) {
+        register_thread(ThreadRole::MAIN);
+        MAIN_THREAD_REGISTERED = 1;
+    }
+    else {
+        register_thread(ThreadRole::CHECKER);
+    }
 }
 
 void exit_janus_thread(void *drcontext) {
@@ -80,7 +89,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
-    printf("Current PID = %d\n", getpid());
+    printf("Current TID = %d\n", gettid());
 
     do {
         rule_opcode = rule->opcode;

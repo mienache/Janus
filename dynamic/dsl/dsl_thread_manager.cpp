@@ -1,3 +1,5 @@
+#include "dsl_thread_manager.h"
+
 #include <exception>
 #include <iostream>
 #include <iomanip>
@@ -10,11 +12,12 @@
 #include "janus_api.h"
 #include "dsl_ipc.h"
 
+std::map <pid_t, AppThread*> app_threads;
+bool MAIN_THREAD_REGISTERED;
+
 void* alloc_thread_stack(size_t size);
 
 void create_checker_thread(uint64_t pc) {
-    std::cout << "In create checker thread"<< std::endl;
-
     std::cout << "In create_checker_thread PC is " << std::hex << pc << std::endl;
 
     // int (*main_ptr)(int, char*) = (int (*)(int, char*)) pc;
@@ -32,16 +35,9 @@ void create_checker_thread(uint64_t pc) {
              CLONE_FS | CLONE_FILES  | CLONE_IO | CLONE_SIGHAND);
 
     std::cout << "Calling clone" << std::endl;
+
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
-
     std::cout << "New pid = " << newpid << std::endl;
-
-    if (newpid) {
-        pidToRole.insert(std::make_pair(getpid(), ThreadRole::MAIN));
-    }
-    else {
-        pidToRole.insert(std::make_pair(getpid(), ThreadRole::CHECKER));
-    }
 }
 
 void* alloc_thread_stack(size_t size)
@@ -53,4 +49,31 @@ void* alloc_thread_stack(size_t size)
     size_t sp = (size_t)p + size;
 
     return (void*) sp;
+}
+
+void register_thread(ThreadRole threadRole)
+{
+    pid_t pid = getpid();
+
+    AppThread *app_thread = new AppThread(pid);
+
+    app_thread->threadRole = threadRole;
+
+    app_threads.insert(std::make_pair(pid, app_thread));
+
+    std::cout << "Thread registered" << std::endl;
+
+    switch (threadRole) {
+        case MAIN: {
+            std::cout << "role = MAIN" << std::endl;
+            break;
+        }
+        case CHECKER: {
+            std::cout << "role = CHECKER" << std::endl;
+            break;
+        }
+        default: {
+            std::cout << "role = UNKNOWN" << std::endl;
+        }
+    }
 }

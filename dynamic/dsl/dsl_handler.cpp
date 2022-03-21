@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <iomanip>
+#include <unistd.h>
 
 #include "dsl_core.h"
 #include "dsl_ipc.h"
