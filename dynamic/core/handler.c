@@ -215,11 +215,15 @@ void
 insert_function_call_as_application(JANUS_CONTEXT, void *func)
 {
 #ifdef JANUS_X86
-    instr_t *trigger = get_trigger_instruction(bb,rule);
+    //instr_t *trigger = instr_get_next(get_trigger_instruction(bb,rule));
+    instr_t *trigger = instr_get_next(get_trigger_instruction(bb,rule));
     instr_t *first = trigger;
     instr_t *instr, *prev_instr;
     instr_t *label = INSTR_CREATE_label(drcontext);
-    app_pc pc = (app_pc)rule->pc;
+    // app_pc pc = (app_pc)rule->pc;
+    app_pc pc = instr_get_app_pc(trigger);
+
+    printf("PC is %p\n", (void*) pc);
 
     prev_instr = instr_get_prev(trigger);
     
@@ -236,8 +240,20 @@ insert_function_call_as_application(JANUS_CONTEXT, void *func)
     PRE_INSERT(bb, trigger, instr);
 
     /* Create the jump. */
+    printf("Before creating jump\n");
+    printf("Creating jump at %p\n", (void*) call_func_code_cache);
     instr = INSTR_CREATE_jmp(drcontext, opnd_create_pc(call_func_code_cache));
+    printf("Before translation\n");
+    if (prev_instr) {
+        printf("Prev instr is NOT null\n");
+    }
+    else {
+        printf("Prev instr is null\n");
+    }
     instr_set_translation(instr, instr_get_app_pc(prev_instr));
+    printf("After translation\n");
+
+    printf("After setting translation\n");
     instrlist_preinsert(bb, trigger, instr);
 #elif JANUS_AARCH64
     instr_t *trigger = get_trigger_instruction(bb,rule);
@@ -351,6 +367,15 @@ void create_call_func_code_cache(void)
     instrlist_preinsert(bb, debug, instr);
 #endif
     /* Encodes the instructions into memory and then cleans up. */
+
+    app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
+
+    file_t output_file = dr_open_file("call_func_code_cache_instructions.txt", DR_FILE_WRITE_OVERWRITE);
+
+    instrlist_disassemble(drcontext, tag_new, bb, output_file);
+
+    dr_close_file(output_file);
+
     end = instrlist_encode(drcontext, bb, code_cache, false);
     DR_ASSERT((end - code_cache) < PAGE_SIZE);
     //instrlist_disassemble(drcontext, code_cache, bb, STDERR);

@@ -31,6 +31,7 @@ void append_value(int val)
 int consume_value()
 {
     std::cout << "Consuming value at IPC_QUEUE->begin = " << IPC_QUEUE->begin << std::endl;
+    return 1;
 
     while(IPC_QUEUE->begin == IPC_QUEUE->end); // The queue is empty, must wait
 
@@ -49,18 +50,20 @@ void communicate(uint64_t register_value) {
 
     static int cnt = 0;
 
-    std::cout << "Comunicating from thread " << gettid() << std::endl;
+    std::cout << gettid() << " communicating " << std::endl;
 
     AppThread *app_thread = app_threads[gettid()];
 
     if (app_thread->threadRole == ThreadRole::MAIN) {
-        std::cout << "Appending value " << register_value << std::endl;
-        append_value(register_value);
+        std::cout << gettid() << ": appending value " << register_value << std::endl;
+        // append_value(register_value);
+        append_value(1);
     }
     else {
-        std::cout << "Consuming value " << register_value << std::endl;
+        std::cout << gettid() << ": consuming value " << register_value << std::endl;
 
-        const int expected_value = consume_value();
+        int expected_value = consume_value();
+        expected_value = 1;
         if (expected_value != register_value) {
             std::cout << "DIFF: " << expected_value << " != " << register_value << std::endl;
         }

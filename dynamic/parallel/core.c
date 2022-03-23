@@ -106,6 +106,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     bool mustEndTrace = false;
 
     printf("Current PID = %d\n", getpid());
+    printf("Current TID = %d\n", gettid());
     printf("Current TLS.id = %d\n", tls->id);
     do
     {
@@ -124,6 +125,17 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
                 return DR_EMIT_DEFAULT;
             case THREAD_CREATE:
                 if (!janus_status) break;
+                printf("Case THREAD_CREATE\n");
+                printf("Rule PC is %p\n", (void*) rule->pc);
+
+                app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
+
+                file_t output_file = dr_open_file("2mm_instructions_before_inserting.txt", DR_FILE_WRITE_OVERWRITE);
+
+                instrlist_disassemble(drcontext, tag_new, bb, output_file);
+
+                dr_close_file(output_file);
+
                 insert_function_call_as_application(janus_context,janus_create_threads);
                 /* Special case: only 1 thread */
                 printf("Number of threads is: %d\n", rsched_info.number_of_threads);
@@ -131,6 +143,15 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
                     janus_generate_loop_code(drcontext, oracle[0]);
                     shared->code_ready = 1;
                 }
+
+                tag_new = instr_get_app_pc(instrlist_first_app(bb));
+
+                output_file = dr_open_file("2mm_instructions.txt", DR_FILE_WRITE_OVERWRITE);
+
+                instrlist_disassemble(drcontext, tag_new, bb, output_file);
+
+                dr_close_file(output_file);
+
                 break;
             case THREAD_EXIT:
                 #ifdef SLOW_THREAD_EXIT

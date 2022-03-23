@@ -11,6 +11,7 @@
 */
 
 extern bool MAIN_THREAD_REGISTERED;
+extern bool CHECKER_THREAD_REGISTERED;
 
 enum ThreadRole {
     UNKNOWN,
@@ -30,6 +31,7 @@ extern std::map <pid_t, AppThread*> app_threads;
 
 void register_thread(ThreadRole threadRole);
 
-void create_checker_thread(uint64_t pc);
+//void create_checker_thread(uint64_t pc);
+void create_checker_thread();
 
 #endif

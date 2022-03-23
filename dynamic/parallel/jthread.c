@@ -168,6 +168,7 @@ static size_t janus_get_thread_stack_size()
 void janus_thread_exit_handler(void *drcontext)
 {
 #ifdef JANUS_VERBOSE
+    dr_printf("EXITING THREAD %d\n", gettid());
     dr_printf("A janus thread deleted %p\n",drcontext);
 #endif
 #ifdef JANUS_STATS
@@ -176,6 +177,7 @@ void janus_thread_exit_handler(void *drcontext)
     if (local->id != 0) return;
 #endif
     int i;
+
 
     dr_printf("No. iterations\n");
     for (i=0; i<rsched_info.number_of_threads; i++) {
