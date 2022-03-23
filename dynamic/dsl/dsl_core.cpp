@@ -80,7 +80,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
-    printf("Current PID = %d\n", getpid());
+
+    std::cout << "TID = " << gettid() << ": Processing basic block" << std::endl;
 
     do {
         rule_opcode = rule->opcode;

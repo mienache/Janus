@@ -50,7 +50,7 @@ void communicate(uint64_t register_value) {
 
     static int cnt = 0;
 
-    if (pidToRole[getpid()] == ThreadRole::MAIN) {
+    if (pidToRole[gettid()] == ThreadRole::MAIN) {
         std::cout << "Appending value " << register_value << std::endl;
         append_value(register_value);
     }

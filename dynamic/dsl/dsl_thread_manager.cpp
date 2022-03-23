@@ -37,10 +37,10 @@ void create_checker_thread(uint64_t pc) {
     std::cout << "New pid = " << newpid << std::endl;
 
     if (newpid) {
-        pidToRole.insert(std::make_pair(getpid(), ThreadRole::MAIN));
+        pidToRole.insert(std::make_pair(gettid(), ThreadRole::MAIN));
     }
     else {
-        pidToRole.insert(std::make_pair(getpid(), ThreadRole::CHECKER));
+        pidToRole.insert(std::make_pair(gettid(), ThreadRole::CHECKER));
     }
 }
 
