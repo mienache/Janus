@@ -20,10 +20,10 @@ void* alloc_thread_stack(size_t size);
 
 //void create_checker_thread(uint64_t pc) {
 void create_checker_thread() {
-    std::cout << gettid() << ": in create_checker_thread" << std::endl;
+    std::cout << "In create_checker_thread" << std::endl;
     std::cout << "Address of create_checker_thread: " << (void*) create_checker_thread << std::endl;
     if (CHECKER_THREAD_REGISTERED) {
-        std::cout << gettid() << ": Checker thread already registered " << std::endl;
+        std::cout << "Checker thread already registered " << std::endl;
         return;
     }
 
@@ -53,9 +53,6 @@ void create_checker_thread() {
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
 
     std::cout << "New pid = " << newpid << std::endl;
-
-    sleep(5);
-
 }
 
 void* alloc_thread_stack(size_t size)
@@ -69,9 +66,9 @@ void* alloc_thread_stack(size_t size)
     return (void*) sp;
 }
 
-void register_thread(ThreadRole threadRole)
+void register_thread(ThreadRole threadRole, void *drcontext)
 {
-    pid_t tid = gettid();
+    pid_t tid = dr_get_thread_id(drcontext);
 
     AppThread *app_thread = new AppThread(tid);
 
@@ -79,8 +76,7 @@ void register_thread(ThreadRole threadRole)
 
     app_threads.insert(std::make_pair(tid, app_thread));
 
-    sleep(3);
-    std::cout << gettid() << ": Thread registered" << std::endl;
+    std::cout << dr_get_thread_id(drcontext) << ": Thread registered" << std::endl;
 
     switch (threadRole) {
         case MAIN: {
@@ -88,7 +84,6 @@ void register_thread(ThreadRole threadRole)
             break;
         }
         case CHECKER: {
-            sleep(3);
             std::cout << "role = CHECKER" << std::endl;
             break;
         }

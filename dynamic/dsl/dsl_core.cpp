@@ -65,29 +65,24 @@ dr_init(client_id_t id)
 int total_num_threads;
 
 void new_janus_thread(void *drcontext) {
+    std::cout << "In new janus thread, drcontext = " << drcontext << std::endl;
     init_routine();
     std::cout << "Threads registered " << ++total_num_threads << std::endl;
-    std::cout << "Thread ID from dr_get_thread_id: " << dr_get_thread_id(drcontext) << std::endl;
+    std::cout << "New Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
     if (!MAIN_THREAD_REGISTERED) {
-        std::cout << "New Janus TID = " << gettid() << std::endl;
-        register_thread(ThreadRole::MAIN);
+        register_thread(ThreadRole::MAIN, drcontext);
         MAIN_THREAD_REGISTERED = 1;
     }
     else {
-        std::cout << "New Janus TID = " << gettid() << std::endl;
         // std::cout << "Checker thread sleeping for 5 sec... " << std::endl;
         // sleep(5);
-        printf("New Janus TID = %d\n", gettid());
         CHECKER_THREAD_REGISTERED = 1;
-        register_thread(ThreadRole::CHECKER);
+        register_thread(ThreadRole::CHECKER, drcontext);
     }
 }
 
 void exit_janus_thread(void *drcontext) {
-    std::cout << "Thread leaving: TID = " << gettid() << std::endl;
-    std::cout << "Thread ID from dr_get_thread_id: " << dr_get_thread_id(drcontext) << std::endl;
-    std::cout << "Sleeping 5 sec before leaving" << std::endl;
-    sleep(5);
+    std::cout << "Thread leaving: TID = " << dr_get_thread_id(drcontext) << std::endl;
     exit_routine();
     // _exit(0);
 }
@@ -109,10 +104,10 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
-    printf("Current TID = %d\n", gettid());
+    std::cout << "Current TID = " << dr_get_thread_id(drcontext) << std::endl;
 
     string filename;
-    if (app_threads[gettid()]->threadRole == ThreadRole::MAIN) {
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         filename = "main_basic_block_" + std::to_string(++cnt1);
     }
     else {
@@ -128,7 +123,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     dr_close_file(output_file);
 
     do {
-        if (app_threads[gettid()]->threadRole == ThreadRole::CHECKER) {
+        if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
             std::cout << "Checker thread iterating over rules" << std::endl;
         }
         rule_opcode = rule->opcode;
@@ -140,7 +135,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         rule = rule->next;
     }while(rule);
 
-    if (app_threads[gettid()]->threadRole == ThreadRole::CHECKER) {
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "Checker thread FINISHED iterating over rules" << std::endl;
         filename = "checker_basic_block_" + std::to_string(cnt2) + "_modified";
         file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);

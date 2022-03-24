@@ -29,7 +29,7 @@ class AppThread {
 
 extern std::map <pid_t, AppThread*> app_threads;
 
-void register_thread(ThreadRole threadRole);
+void register_thread(ThreadRole threadRole, void* drcontext);
 
 //void create_checker_thread(uint64_t pc);
 void create_checker_thread();

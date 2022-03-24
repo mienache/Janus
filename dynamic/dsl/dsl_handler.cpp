@@ -11,11 +11,20 @@
 #include "janus_api.h"
 #include "handler.h"
 
-
+void thread_sleep()
+{
+    // std::cout << "Sending thread to sleep: TID = " << dr_get_thread_id(drcontext) << std::endl;
+    std::cout << "Thread sleeping " << gettid() << std::endl;
+    //sleep(2);
+}
 
 /*--- Dynamic Handlers Start ---*/
 void handler_1(JANUS_CONTEXT){
-    if (app_threads[gettid()]->threadRole == ThreadRole::CHECKER) {
+    insert_function_call_as_application(janus_context, thread_sleep);
+
+    return; 
+
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "Checker thread in handler_1" << std::endl;
     }
     instr_t * trigger = get_trigger_instruction(bb,rule);
@@ -30,13 +39,17 @@ void handler_1(JANUS_CONTEXT){
 } 
 
 void msg() {
-    std::cout << "Just before clean call" << std::endl;
+    std::cout << "Inside clean call" << std::endl;
 }
+
 void handler_2(JANUS_CONTEXT){
-    if (app_threads[gettid()]->threadRole == ThreadRole::CHECKER) {
+    return;
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "Checker thread in handler_2" << std::endl;
     }
     if (CHECKER_THREAD_REGISTERED) {
+        std::cout << "Inserting clean call to " << (void*) msg << std::endl;
+        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), msg, false, 0);
         return;
     }
 
@@ -105,7 +118,9 @@ void handler_2(JANUS_CONTEXT){
 
 
 void handler_3(JANUS_CONTEXT) {
-    if (app_threads[gettid()]->threadRole == ThreadRole::CHECKER) {
+    return;
+
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "Checker thread in handler_3" << std::endl;
     }
     return;

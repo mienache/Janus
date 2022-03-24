@@ -45,22 +45,23 @@ int consume_value()
 
 
 void communicate(uint64_t register_value) {
+    /*
     // TODO: rewrite this in enqueue / dequeue and use those as separate clean calls
     std::cout << "---> In clean call: register_value = " << register_value << std::endl;
 
     static int cnt = 0;
 
-    std::cout << gettid() << " communicating " << std::endl;
+    //std::cout << dr_get_thread_id(drcontext) << " communicating " << std::endl;
 
-    AppThread *app_thread = app_threads[gettid()];
+    AppThread *app_thread = app_threads[dr_get_thread_id(drcontext)];
 
     if (app_thread->threadRole == ThreadRole::MAIN) {
-        std::cout << gettid() << ": appending value " << register_value << std::endl;
+        //std::cout << dr_get_thread_id(drcontext) << ": appending value " << register_value << std::endl;
         // append_value(register_value);
         append_value(1);
     }
     else {
-        std::cout << gettid() << ": consuming value " << register_value << std::endl;
+        //std::cout << dr_get_thread_id(drcontext) << ": consuming value " << register_value << std::endl;
 
         int expected_value = consume_value();
         expected_value = 1;
@@ -71,4 +72,5 @@ void communicate(uint64_t register_value) {
             std::cout << "EQ: " << expected_value << " == " << register_value << std::endl;
         }
     }
+    */
 }
