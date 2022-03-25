@@ -165,10 +165,27 @@ void handler_3(JANUS_CONTEXT) {
     */
 }
 
+void thread_sleep()
+{
+    std::cout << "Thread " << gettid() << " now sleeping for 3 sec." << std::endl;
+    sleep(3);
+}
+
+void handler_4(JANUS_CONTEXT) {
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
+        return;
+    }
+    
+    // Make only the MAIN thread sleep
+    insert_function_call_as_application(janus_context, thread_sleep);
+    // TODO: this should be replaced with a more appropriate synchronization mechanism rather than just sleep
+}
+
 void create_handler_table(){
     htable[0] = (void*)&handler_1;
     htable[1] = (void*)&handler_2;
     htable[2] = (void*)&handler_3;
+    htable[3] = (void*)&handler_4;
 }
 
 /*--- Dynamic Handlers Finish ---*/

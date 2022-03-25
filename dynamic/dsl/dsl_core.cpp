@@ -146,6 +146,29 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //lookup in the hashtable to check if there is any rule attached to the block
     RRule *rule = get_static_rule(bbAddr);
 
+    if (rule == NULL && instr_is_nop(instrlist_first_app(bb))) {
+        // First instruction is a NOP - iterate until we find the first non-NOP.
+        // We need this because the static analyser does not allow basic blocks to start with NOP
+        // instructions. This is different from DynamoRIO's definition of basic blocks, which may start with NOPs.
+        // Hence, if a rewrite rule was registered at the start of a basic block and the underlying instruction is right after a NOP,
+        // the `get_static_rule` call above would not retrive it, so we have to iterate until the first non-NOP.
+        // TODO: probably the solution is to modify the static analyser
+
+        instr_t *curr = instr_get_next_app(instrlist_first_app(bb));
+
+        while (curr && instr_is_nop(curr)) {
+            curr = instr_get_next_app(curr);
+        }
+
+        if (curr) {
+            rule = get_static_rule((PCAddress) instr_get_app_pc(curr));
+        }
+
+        if (rule) {
+            std::cout << "New rule found at " << (void*) instr_get_app_pc(curr) << std::endl;
+        }
+    }
+
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
