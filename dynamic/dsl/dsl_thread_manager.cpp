@@ -53,11 +53,6 @@ void create_checker_thread() {
     CHECKER_THREAD_REGISTERED = 1;
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
 
-    // VERY IMPORTANT: MUST FORCE THE MAIN THREAD TO SLEEP RIGHT AFTER CLONE IS CALLED
-    // OTHERWISE THE MAIN THREAD WILL MOST LIKELY FINISH BEFORE THE SECOND THREAD AND
-    // DYNAMORIO EXECUTION WILL BE STOPPED
-    sleep(3);
-
     std::cout << "(From TID = " << gettid() << "): New pid = " << newpid << std::endl;
 }
 

@@ -5,6 +5,7 @@
 /*--- Global Var Decl Start ---*/
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <stdint.h>
 
 /*--- Global Var Decl End ---*/
@@ -35,9 +36,14 @@ for (auto &func: jc.functions){
 for (auto &F: jc.functions){
     if( is_main_func(jc, F)){
         
+        std::cout << "Inserting thread create rule at " << std::hex << F.startAddress << std::endl;
         insertCustomRule<Function>(2,F,4, true, 0, bitmask);
 
-        std::cout << "Inserting thread create rule at " << std::hex << std::dec << F.startAddress << std::endl;
+
+        std::cout << "Inserting thread wait rule at " << std::hex << F.endAddress<< std::endl;
+        insertCustomRule<Function>(4,F,5, true, 0, bitmask);
+
+        std::cout << std::resetiosflags(std::ios::showbase);
     }
 }
 
