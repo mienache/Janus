@@ -117,14 +117,20 @@ string get_basic_block_filename(void *drcontext, bool is_original_bb)
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         if (is_original_bb) {
             ++cnt1; // Only increment counter if we're printing the original BB (to keep 1-1 mapping between filenames)
+            filename = "main_basic_block_" + std::to_string(cnt1);
         }
-        filename = "main_basic_block_" + std::to_string(cnt1);
+        else {
+            filename = "main_basic_block_modified_" + std::to_string(cnt1);
+        }
     }
     else {
         if (is_original_bb) {
             ++cnt2;
+            filename = "checker_basic_block_" + std::to_string(cnt2);
         }
-        filename = "checker_basic_block_" + std::to_string(cnt2);
+        else {
+            filename = "checker_basic_block_modified_" + std::to_string(cnt2);
+        }
     }
 
     if (!is_original_bb) {
@@ -174,7 +180,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     std::cout << "Processing basic block for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
-    // Next 5 lines just print the original basic block instructions (before it the rules are applied)
+    // Next 5 lines just print the original basic block instructions (before the rules are applied)
     string filename = get_basic_block_filename(drcontext, 1);
     app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
     file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
@@ -191,8 +197,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         rule = rule->next;
     }while(rule);
 
-    // Next 5 lines just print the original basic block instructions (before it the rules are applied)
-    filename = get_basic_block_filename(drcontext, 1);
+    // Next 5 lines just print the modified basic block instructions (after the rules are applied)
+    filename = get_basic_block_filename(drcontext, 0);
     tag_new = instr_get_app_pc(instrlist_first_app(bb));
     output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
     instrlist_disassemble(drcontext, tag_new, bb, output_file);

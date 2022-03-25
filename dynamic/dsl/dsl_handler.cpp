@@ -165,20 +165,33 @@ void handler_3(JANUS_CONTEXT) {
     */
 }
 
-void thread_sleep()
+void wait_for_checker()
 {
-    std::cout << "Thread " << gettid() << " now sleeping for 3 sec." << std::endl;
-    sleep(3);
+    std::cout << "Thread " << gettid() << " now waiting for checker thread" << std::endl;
+    while (!CHECKER_THREAD_FINISHED);
+    std::cout << "Thread " << gettid() << " finished waiting for checker" << std::endl;
+}
+
+void mark_checker_thread_finished()
+{
+    std::cout << "Thread " << gettid() << " now marking completion" << std::endl;
+    CHECKER_THREAD_FINISHED = 1;
 }
 
 void handler_4(JANUS_CONTEXT) {
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        return;
+    std::cout << "In handler_4: TID = " << dr_get_thread_id(drcontext) << std::endl;
+
+    // At the end of main, MAIN thread should wait for CHECKER,
+    // whilst CHECKER should mark completion when it's done.
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
+        // insert_function_call_as_application(janus_context, wait_for_checker);
+        std::cout << "Addres of wait_for_checker: " << (void*) wait_for_checker << std::endl;
+        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), wait_for_checker, false, 0);
     }
-    
-    // Make only the MAIN thread sleep
-    insert_function_call_as_application(janus_context, thread_sleep);
-    // TODO: this should be replaced with a more appropriate synchronization mechanism rather than just sleep
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
+        // insert_function_call_as_application(janus_context, mark_checker_thread_finished);
+        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), mark_checker_thread_finished, false, 0);
+    }
 }
 
 void create_handler_table(){

@@ -1,6 +1,7 @@
 #ifndef __DSL_THREAD_MANAGER__
 #define __DSL_THREAD_MANAGER__
 
+#include <atomic>
 #include <map>
 
 /*
@@ -12,6 +13,7 @@
 
 extern bool MAIN_THREAD_REGISTERED;
 extern bool CHECKER_THREAD_REGISTERED;
+extern std::atomic<bool> CHECKER_THREAD_FINISHED;
 
 enum ThreadRole {
     UNKNOWN,
