@@ -11,22 +11,27 @@
 #include "janus_api.h"
 #include "handler.h"
 
-void thread_sleep()
+void print_func_entry_msg(void *drcontext, string func_name)
 {
-    // std::cout << "Sending thread to sleep: TID = " << dr_get_thread_id(drcontext) << std::endl;
-    std::cout << "Thread sleeping " << gettid() << std::endl;
-    //sleep(2);
+    string thread_role;
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
+        thread_role = "MAIN";
+    }
+    else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
+        thread_role = "CHECKER";
+    }
+    else {
+        thread_role = "UNKNOWN";
+    }
+
+    std::cout << "Thread " << thread_role << " enters " << func_name << std::endl;
 }
 
 /*--- Dynamic Handlers Start ---*/
 void handler_1(JANUS_CONTEXT){
-    insert_function_call_as_application(janus_context, thread_sleep);
+    // Uncomment below to monitor when this handler is invoked
+    // print_func_entry_msg(drcontext, "handler_1");
 
-    return; 
-
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        std::cout << "Checker thread in handler_1" << std::endl;
-    }
     instr_t * trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
     dr_save_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_1);
@@ -34,32 +39,36 @@ void handler_1(JANUS_CONTEXT){
     instrlist_meta_preinsert(bb, trigger, XINST_CREATE_add(drcontext, opnd_create_reg(DR_REG_RAX), OPND_CREATE_INT32(1)));
     instrlist_meta_preinsert(bb, trigger, XINST_CREATE_store(drcontext, OPND_CREATE_ABSMEM((byte *)&inst_count, OPSZ_8), opnd_create_reg(DR_REG_RAX)));
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_1);
-
-    std::cout << "in handler 1" << std::endl;
 } 
 
-void msg() {
-    std::cout << "Inside clean call" << std::endl;
-}
-
 void handler_2(JANUS_CONTEXT){
-    return;
+    print_func_entry_msg(drcontext, "handler_2");
+
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        std::cout << "Checker thread in handler_2" << std::endl;
-    }
-    if (CHECKER_THREAD_REGISTERED) {
-        std::cout << "Inserting clean call to " << (void*) msg << std::endl;
-        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), msg, false, 0);
+        std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
         return;
     }
 
-    instr_t *first = instrlist_first(bb);
-    std::cout << "First instruction is at " << (void*) instr_get_app_pc(first) << std::endl;
+    std::cout << "MAIN thread now adding instrumentation code for generating CHECKER thread" << std::endl;
+
+    instr_t *first = instrlist_first_app(bb);
+    std::cout << "The the basic block where thread creation is added starts at: " << (void*) instr_get_app_pc(first) << std::endl;
 
     instr_t * trigger = get_trigger_instruction(bb,rule);
     app_pc pc = instr_get_app_pc(trigger);
-    std::cout << "In handler 2 PC is " << std::hex << (void*) pc << std::dec << std::endl;
+    std::cout << "APP PC is " << std::hex << (void*) pc << std::dec << std::endl;
     std::cout << std::resetiosflags(std::ios::showbase);
+
+    // IMPORTANT!
+    // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
+    insert_function_call_as_application(janus_context, create_checker_thread);
+
+
+    // Just printing the modified basic block to identify the file easier
+    app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
+    file_t output_file = dr_open_file("instructions.txt", DR_FILE_WRITE_OVERWRITE);
+    instrlist_disassemble(drcontext, tag_new, bb, output_file);
+    dr_close_file(output_file);
 
 
     /*
@@ -83,10 +92,8 @@ void handler_2(JANUS_CONTEXT){
     dr_save_reg(drcontext,bb,trigger, DR_REG_R14, SPILL_SLOT_12);
     dr_save_reg(drcontext,bb,trigger, DR_REG_R15, SPILL_SLOT_3);
 
-    */
     insert_function_call_as_application(janus_context, create_checker_thread);
 
-    /*
     dr_restore_reg(drcontext,bb,trigger,DR_REG_R14,SPILL_SLOT_12);
     dr_restore_reg(drcontext,bb,trigger,DR_REG_R15,SPILL_SLOT_3);
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_14);
@@ -106,20 +113,14 @@ void handler_2(JANUS_CONTEXT){
     dr_restore_arith_flags(drcontext,bb,trigger,SPILL_SLOT_11);
     dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
     */
-
-    app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
-
-    file_t output_file = dr_open_file("instructions.txt", DR_FILE_WRITE_OVERWRITE);
-
-    instrlist_disassemble(drcontext, tag_new, bb, output_file);
-
-    dr_close_file(output_file);
 }
 
 
 void handler_3(JANUS_CONTEXT) {
+    // Can skip for now the instrumentation required for communication
     return;
 
+    /*
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "Checker thread in handler_3" << std::endl;
     }
@@ -161,6 +162,7 @@ void handler_3(JANUS_CONTEXT) {
 
         std::cout << "Clean call inserted" << std::endl;
     }
+    */
 }
 
 void create_handler_table(){

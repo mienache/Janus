@@ -57,38 +57,83 @@ dr_init(client_id_t id)
     }
     IF_VERBOSE(dr_fprintf(STDOUT,"DynamoRIO client initialised\n"));
 
+    std::cout << "Confirm thread private caches: " << dr_using_all_private_caches() << std::endl;
+
+    // Must be called to initialise the call func template
     create_call_func_code_cache();
 
-    create_shared_memory_area();
+    // Can skip this for now until we figure out the thread synchronization issue
+    // create_shared_memory_area();
 }
 
 int total_num_threads;
 
+// This is a a callback invoked whenever DynamoRIO identifies a new thread
 void new_janus_thread(void *drcontext) {
-    std::cout << "In new janus thread, drcontext = " << drcontext << std::endl;
     init_routine();
-    std::cout << "Threads registered " << ++total_num_threads << std::endl;
-    std::cout << "New Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
+    std::cout << "A new thread is registered. Total threads: " << ++total_num_threads << std::endl;
+    std::cout << "The new Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
+
     if (!MAIN_THREAD_REGISTERED) {
-        register_thread(ThreadRole::MAIN, drcontext);
+        // If it is the first thread, register it as the main thread
+        std::cout << "Registering MAIN thread" << std::endl;
         MAIN_THREAD_REGISTERED = 1;
+        register_thread(ThreadRole::MAIN, drcontext);
     }
     else {
-        // std::cout << "Checker thread sleeping for 5 sec... " << std::endl;
-        // sleep(5);
+        // Otherwise register as checker thread
+        std::cout << "Registering CHECKER thread" << std::endl;
         CHECKER_THREAD_REGISTERED = 1;
         register_thread(ThreadRole::CHECKER, drcontext);
     }
+
 }
 
+// This is a a callback invoked whenever DynamoRIO observes a thread is about to leave
 void exit_janus_thread(void *drcontext) {
     std::cout << "Thread leaving: TID = " << dr_get_thread_id(drcontext) << std::endl;
+
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
+        std::cout << "MAIN thread leaving." << std::endl;
+    }
+    else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
+        std::cout << "CHECKER thread leaving." << std::endl;
+    }
+    else {
+        std::cout << "UNKNOWN thread leaving." << std::endl;
+    }
     exit_routine();
-    // _exit(0);
 }
 
+// Helper variables to print the basic block files with unique names.
 int cnt1 = 0;
 int cnt2 = 0;
+
+
+// Helper method for generating the name of a file used to print the current basic block
+string get_basic_block_filename(void *drcontext, bool is_original_bb)
+{
+    string filename;
+    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
+        if (is_original_bb) {
+            ++cnt1; // Only increment counter if we're printing the original BB (to keep 1-1 mapping between filenames)
+        }
+        filename = "main_basic_block_" + std::to_string(cnt1);
+    }
+    else {
+        if (is_original_bb) {
+            ++cnt2;
+        }
+        filename = "checker_basic_block_" + std::to_string(cnt2);
+    }
+
+    if (!is_original_bb) {
+        // Generate different names for the original and the instrumented basic blocks
+        filename += is_original_bb ? ".txt" : "_modified.txt";
+    }
+
+    return filename;
+}
 
 /* Main execution loop: this will be executed at every initial encounter of new basic block */
 static dr_emit_flags_t
@@ -104,28 +149,16 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
-    std::cout << "Current TID = " << dr_get_thread_id(drcontext) << std::endl;
+    std::cout << "Processing basic block for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
-    string filename;
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
-        filename = "main_basic_block_" + std::to_string(++cnt1);
-    }
-    else {
-        filename = "checker_basic_block_" + std::to_string(++cnt2);
-    }
-
+    // Next 5 lines just print the original basic block instructions (before it the rules are applied)
+    string filename = get_basic_block_filename(drcontext, 1);
     app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
-
     file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
-
     dr_close_file(output_file);
 
     do {
-        if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-            std::cout << "Checker thread iterating over rules" << std::endl;
-        }
         rule_opcode = rule->opcode;
         // cout << "Rule opcode is: " << rule->opcode << "\n";
 
@@ -135,26 +168,14 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         rule = rule->next;
     }while(rule);
 
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        std::cout << "Checker thread FINISHED iterating over rules" << std::endl;
-        filename = "checker_basic_block_" + std::to_string(cnt2) + "_modified";
-        file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
+    // Next 5 lines just print the original basic block instructions (before it the rules are applied)
+    filename = get_basic_block_filename(drcontext, 1);
+    tag_new = instr_get_app_pc(instrlist_first_app(bb));
+    output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
+    instrlist_disassemble(drcontext, tag_new, bb, output_file);
+    dr_close_file(output_file);
 
-        instrlist_disassemble(drcontext, tag_new, bb, output_file);
-
-        dr_close_file(output_file);
-    }
-    else {
-        filename = "main_basic_block_" + std::to_string(cnt1) + "_modified";
-        file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-
-        instrlist_disassemble(drcontext, tag_new, bb, output_file);
-
-        dr_close_file(output_file);
-    }
-
-    std::cout << "Thread " << dr_get_thread_id(drcontext) << " should start printing messages now" << std::endl;
-
+    std::cout << "Thread " << dr_get_thread_id(drcontext) << " finished appliying rules - code will be now executed:" << std::endl;
 
     return DR_EMIT_DEFAULT;
 }
