@@ -8,6 +8,7 @@
 #include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
 #include "func.h"
+#include "front_end.h"
 #include "janus_api.h"
 #include "handler.h"
 
@@ -42,10 +43,10 @@ void handler_1(JANUS_CONTEXT){
 } 
 
 void handler_2(JANUS_CONTEXT){
-    print_func_entry_msg(drcontext, "handler_2");
-
+    std::cout << "Instrumenting through handler 2" << std::endl;
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
+        // insert_function_call_as_application(janus_context, some_msg);
         return;
     }
 
@@ -54,10 +55,18 @@ void handler_2(JANUS_CONTEXT){
     instr_t *first = instrlist_first_app(bb);
     std::cout << "The the basic block where thread creation is added starts at: " << (void*) instr_get_app_pc(first) << std::endl;
 
-    instr_t * trigger = get_trigger_instruction(bb,rule);
+    instr_t *trigger = get_trigger_instruction(bb,rule);
     app_pc pc = instr_get_app_pc(trigger);
     std::cout << "APP PC is " << std::hex << (void*) pc << std::dec << std::endl;
     std::cout << std::resetiosflags(std::ios::showbase);
+
+
+    // The jump inserted by insert_function_call_as_application will split the current basic blocks
+    // into two. Thus the rules that should be applied after that jump (i.e., starting from the instruction
+    // right after `trigger`) must be copied to the new basic block, otherwise they won't be applied.
+    instr_t *post_trigger = instr_get_next_app(trigger);
+    app_pc post_trigger_pc = instr_get_app_pc(post_trigger);
+    copy_rules_to_new_bb(post_trigger_pc, pc);
 
     // IMPORTANT!
     // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
@@ -117,19 +126,9 @@ void handler_2(JANUS_CONTEXT){
 
 
 void handler_3(JANUS_CONTEXT) {
-    // Can skip for now the instrumentation required for communication
-    return;
-
-    /*
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        std::cout << "Checker thread in handler_3" << std::endl;
-    }
-    return;
-    std::cout << getpid() << " in handler 3" << std::endl;
+    std::cout << "Instrumenting through handler 3" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
-
-    std::cout << getpid() << ": trigger instruction " << (void*) instr_get_app_pc(trigger) << std::endl;
     instr_t *post_trigger = instr_get_next(trigger);
 
     dr_mcontext_t mc = {sizeof(mc), DR_MC_ALL};
@@ -139,10 +138,10 @@ void handler_3(JANUS_CONTEXT) {
 
     // Get the number of destination operands 
     int num_dest_opnds = instr_num_dsts(trigger);
-
     if (num_dest_opnds > 1) {
         std::cout << "Instructions with more than 1 dest operands found" << std::endl;
     }
+
     
     // Iterate over each dest operands
     for (int i = 0; i < num_dest_opnds; ++i) {
@@ -157,12 +156,11 @@ void handler_3(JANUS_CONTEXT) {
         reg_id_t reg = opnd_get_reg(dest);
         std::cout << " Passing register " << get_register_name(reg) << " to clean call" << std::endl;
 
+        std::cout << "Inserting clean call for " << dr_get_thread_id(drcontext) << " at " << (void*) instr_get_app_pc(trigger) << std::endl;
+
         // Insert the value in the queue
         dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 1, dest);
-
-        std::cout << "Clean call inserted" << std::endl;
     }
-    */
 }
 
 void wait_for_checker()

@@ -375,3 +375,12 @@ base_tree* insert_base(base_tree* node, PCAddress base){
      return node;
      //if base == node.value, do nothing and return;
 }
+
+void copy_rules_to_new_bb(void *dest_bb_start, void *source_bb_start)
+{
+    hashtable_add(
+        &rule_table[KEYBASE],
+        dest_bb_start - KEYBASE,
+        hashtable_lookup(&rule_table[KEYBASE], source_bb_start - KEYBASE)
+    );
+}

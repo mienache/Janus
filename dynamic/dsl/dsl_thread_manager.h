@@ -14,6 +14,7 @@
 extern bool MAIN_THREAD_REGISTERED;
 extern bool CHECKER_THREAD_REGISTERED;
 extern std::atomic<bool> CHECKER_THREAD_FINISHED;
+extern std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 
 enum ThreadRole {
     UNKNOWN,

@@ -17,6 +17,7 @@ std::map <pid_t, AppThread*> app_threads;
 bool MAIN_THREAD_REGISTERED;
 bool CHECKER_THREAD_REGISTERED;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
+std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 
 void* alloc_thread_stack(size_t size);
 
@@ -61,6 +62,8 @@ void create_checker_thread() {
     // sleep(3);
 
     std::cout << "(From TID = " << gettid() << "): New pid = " << newpid << std::endl;
+
+    PAST_THREAD_CREATION_STAGE = 1;
 }
 
 void* alloc_thread_stack(size_t size)

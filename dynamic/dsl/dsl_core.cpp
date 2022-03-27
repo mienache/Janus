@@ -25,8 +25,6 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT);
 /* Handler table */
 void **htable = NULL;
 
-void create_shared_memory_area();
-
 DR_EXPORT void 
 dr_init(client_id_t id)
 {
@@ -62,8 +60,7 @@ dr_init(client_id_t id)
     // Must be called to initialise the call func template
     create_call_func_code_cache();
 
-    // Can skip this for now until we figure out the thread synchronization issue
-    // create_shared_memory_area();
+    create_shared_memory_area();
 }
 
 int total_num_threads;
@@ -178,7 +175,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     //if it is a normal basic block, then omit it.
     if(rule == NULL) return DR_EMIT_DEFAULT;
 
-    std::cout << "Processing basic block for TID = " << dr_get_thread_id(drcontext) << std::endl;
+    std::cout << "Processing basic block at " << (void*) bbAddr << " for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
     // Next 5 lines just print the original basic block instructions (before the rules are applied)
     string filename = get_basic_block_filename(drcontext, 1);
@@ -188,6 +185,21 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     dr_close_file(output_file);
 
     do {
+        // The while below is needed because a linked list of rules might belong to different
+        // basic blocks if an original basic block was split. This is because the PC of some
+        // rules may be in the second block but currently there is no mechanism to redistribute
+        // the rules in the rule table so we keep a copy in the entries of both of the resulting
+        // basic blocks. (see `copy_rules_to_new_bb` in front_end.h)
+
+        while (rule && rule->pc < bbAddr) {
+            // Rule actually belongs to a preivous block, skip it
+            rule = rule->next;
+        }
+
+        if (!rule) {
+            break;
+        }
+
         rule_opcode = rule->opcode;
         // cout << "Rule opcode is: " << rule->opcode << "\n";
 
