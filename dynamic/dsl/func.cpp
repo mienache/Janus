@@ -2,6 +2,7 @@
 #include <iostream>
 #include "func.h"
 #include "util.h"
+#include "dsl_thread_manager.h"
 using namespace std;
 /*--- Global Var Decl Start ---*/
 #include <fstream>
@@ -21,6 +22,7 @@ void exit_routine(){
 /*--- Termination End ---*/
 }
 void init_routine(){
+    init_num_threads(2);
     /*--- Init Start ---*/
 
 /*--- Init End ---*/

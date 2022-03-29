@@ -16,6 +16,7 @@
 std::map <pid_t, AppThread*> app_threads;
 bool MAIN_THREAD_REGISTERED;
 bool CHECKER_THREAD_REGISTERED;
+int NUM_THREADS;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
 std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 
@@ -101,4 +102,10 @@ void register_thread(ThreadRole threadRole, void *drcontext)
             std::cout << "role = UNKNOWN" << std::endl;
         }
     }
+}
+
+void init_num_threads(int num_threads)
+{
+    std::cout << "Num threads initialised to " << num_threads << std::endl;
+    NUM_THREADS = num_threads;
 }

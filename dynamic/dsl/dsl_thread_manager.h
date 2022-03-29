@@ -13,6 +13,7 @@
 
 extern bool MAIN_THREAD_REGISTERED;
 extern bool CHECKER_THREAD_REGISTERED;
+extern int NUM_THREADS;
 extern std::atomic<bool> CHECKER_THREAD_FINISHED;
 extern std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 
@@ -36,5 +37,7 @@ void register_thread(ThreadRole threadRole, void* drcontext);
 
 //void create_checker_thread(uint64_t pc);
 void create_checker_thread();
+
+void init_num_threads(int num_threads);
 
 #endif

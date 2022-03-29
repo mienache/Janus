@@ -60,6 +60,8 @@ dr_init(client_id_t id)
     // Must be called to initialise the call func template
     create_call_func_code_cache();
 
+    init_routine();
+
     create_shared_memory_area();
 }
 
@@ -67,7 +69,6 @@ int total_num_threads;
 
 // This is a a callback invoked whenever DynamoRIO identifies a new thread
 void new_janus_thread(void *drcontext) {
-    init_routine();
     std::cout << "A new thread is registered. Total threads: " << ++total_num_threads << std::endl;
     std::cout << "The new Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
 
