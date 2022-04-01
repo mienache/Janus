@@ -60,6 +60,7 @@ void handler_2(JANUS_CONTEXT){
     std::cout << "APP PC is " << std::hex << (void*) pc << std::dec << std::endl;
     std::cout << std::resetiosflags(std::ios::showbase);
 
+    NEW_THREAD_START_PTR = (void*) pc; // TODO: maybe replace this with registers
 
     // The jump inserted by insert_function_call_as_application will split the current basic blocks
     // into two. Thus the rules that should be applied after that jump (i.e., starting from the instruction

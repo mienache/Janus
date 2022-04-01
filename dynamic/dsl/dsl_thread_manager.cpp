@@ -19,6 +19,7 @@ bool CHECKER_THREAD_REGISTERED;
 int NUM_THREADS;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
 std::atomic<bool> PAST_THREAD_CREATION_STAGE;
+void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
@@ -38,7 +39,7 @@ void create_checker_thread() {
 
     // Encode manually the address to the beginning of the main function - don't forget to update this
     // if recompiling the binary or using a different one.
-    int (*main_ptr)(int, char*) = (int (*)(int, char*)) 0x0000000000401156;
+    int (*main_ptr)(int, char*) = (int (*)(int, char*)) NEW_THREAD_START_PTR;
 
     // int (*main_ptr)(int, char*) = (int (*)(int, char*)) pc;
     // TODO: see how to convert PC above to the real address
