@@ -72,6 +72,9 @@ void new_janus_thread(void *drcontext) {
     std::cout << "A new thread is registered. Total threads: " << ++total_num_threads << std::endl;
     std::cout << "The new Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
 
+/*--- Janus Thread Init Start ---*/
+
+/*--- Janus Thread Init Finish ---*/
     if (!MAIN_THREAD_REGISTERED) {
         // If it is the first thread, register it as the main thread
         std::cout << "Registering MAIN thread" << std::endl;
