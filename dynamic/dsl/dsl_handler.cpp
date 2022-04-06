@@ -44,21 +44,16 @@ void handler_1(JANUS_CONTEXT){
 
 void handler_2(JANUS_CONTEXT){
     std::cout << "Instrumenting through handler 2" << std::endl;
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
+    if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
         std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
-        // insert_function_call_as_application(janus_context, some_msg);
         return;
     }
 
     std::cout << "MAIN thread now adding instrumentation code for generating CHECKER thread" << std::endl;
 
-    instr_t *first = instrlist_first_app(bb);
-    std::cout << "The the basic block where thread creation is added starts at: " << (void*) instr_get_app_pc(first) << std::endl;
-
     instr_t *trigger = get_trigger_instruction(bb,rule);
     app_pc pc = instr_get_app_pc(trigger);
-    std::cout << "APP PC is " << std::hex << (void*) pc << std::dec << std::endl;
-    std::cout << std::resetiosflags(std::ios::showbase);
+    std::cout << "APP PC of trigger is" << (void*) pc << std::endl;
 
     NEW_THREAD_START_PTR = (void*) pc; // TODO: maybe replace this with registers
 
@@ -68,10 +63,6 @@ void handler_2(JANUS_CONTEXT){
     instr_t *post_trigger = instr_get_next_app(trigger);
     app_pc post_trigger_pc = instr_get_app_pc(post_trigger);
     copy_rules_to_new_bb(post_trigger_pc, pc);
-
-    // IMPORTANT!
-    // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
-
 
     // TODO: in the future we will need to save the RDI register on the stack
     // but for now this works as the thread creation only happens at the beginning of the
@@ -84,6 +75,8 @@ void handler_2(JANUS_CONTEXT){
     );
     instrlist_meta_preinsert(bb, trigger, instr);
 
+    // IMPORTANT!
+    // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
     insert_function_call_as_application(janus_context, create_checker_thread);
 
 
@@ -92,50 +85,6 @@ void handler_2(JANUS_CONTEXT){
     file_t output_file = dr_open_file("instructions.txt", DR_FILE_WRITE_OVERWRITE);
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
-
-
-    /*
-    uint64_t bitmask = rule->reg1;
-    if(inRegSet(bitmask,11)) dr_save_reg(drcontext,bb,trigger,DR_REG_R10,SPILL_SLOT_1);
-    if(inRegSet(bitmask,12)) dr_save_reg(drcontext,bb,trigger,DR_REG_R11,SPILL_SLOT_2);
-    if(inRegSet(bitmask,9)) dr_save_reg(drcontext,bb,trigger,DR_REG_R8,SPILL_SLOT_4);
-    if(inRegSet(bitmask,10)) dr_save_reg(drcontext,bb,trigger,DR_REG_R9,SPILL_SLOT_5);
-    dr_save_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
-    if(inRegSet(bitmask,2)) dr_save_reg(drcontext,bb,trigger,DR_REG_RCX,SPILL_SLOT_7);
-    if(inRegSet(bitmask,8)) dr_save_reg(drcontext,bb,trigger,DR_REG_RDI,SPILL_SLOT_8);
-    if(inRegSet(bitmask,3)) dr_save_reg(drcontext,bb,trigger,DR_REG_RDX,SPILL_SLOT_9);
-    if(inRegSet(bitmask,7)) dr_save_reg(drcontext,bb,trigger,DR_REG_RSI,SPILL_SLOT_10);
-    dr_save_arith_flags(drcontext,bb,trigger,SPILL_SLOT_11);
-    dr_save_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_11);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
-    instrlist_meta_preinsert(bb, trigger,INSTR_CREATE_push(drcontext, opnd_create_reg(DR_REG_RAX)));
-    //dr_insert_clean_call(drcontext, bb, instrlist_first(bb), create_checker_thread, false, 1, OPND_CREATE_INT64(val));
-
-    dr_save_reg(drcontext,bb,trigger, DR_REG_RAX, SPILL_SLOT_13);
-    dr_save_reg(drcontext,bb,trigger, DR_REG_R14, SPILL_SLOT_12);
-    dr_save_reg(drcontext,bb,trigger, DR_REG_R15, SPILL_SLOT_3);
-
-    insert_function_call_as_application(janus_context, create_checker_thread);
-
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_R14,SPILL_SLOT_12);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_R15,SPILL_SLOT_3);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_14);
-
-    instrlist_meta_preinsert(bb, trigger, INSTR_CREATE_pop(drcontext, opnd_create_reg(DR_REG_RAX)));
-    if(inRegSet(bitmask,11)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R10,SPILL_SLOT_1);
-    if(inRegSet(bitmask,12)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R11,SPILL_SLOT_2);
-    if(inRegSet(bitmask,16)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R15,SPILL_SLOT_3);
-    if(inRegSet(bitmask,9)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R8,SPILL_SLOT_4);
-    if(inRegSet(bitmask,10)) dr_restore_reg(drcontext,bb,trigger,DR_REG_R9,SPILL_SLOT_5);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
-    if(inRegSet(bitmask,2)) dr_restore_reg(drcontext,bb,trigger,DR_REG_RCX,SPILL_SLOT_7);
-    if(inRegSet(bitmask,8)) dr_restore_reg(drcontext,bb,trigger,DR_REG_RDI,SPILL_SLOT_8);
-    if(inRegSet(bitmask,3)) dr_restore_reg(drcontext,bb,trigger,DR_REG_RDX,SPILL_SLOT_9);
-    if(inRegSet(bitmask,7)) dr_restore_reg(drcontext,bb,trigger,DR_REG_RSI,SPILL_SLOT_10);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_11);
-    dr_restore_arith_flags(drcontext,bb,trigger,SPILL_SLOT_11);
-    dr_restore_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_6);
-    */
 }
 
 

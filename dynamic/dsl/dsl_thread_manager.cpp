@@ -27,7 +27,7 @@ void* alloc_thread_stack(size_t size);
 void create_checker_thread(void *raw_app_thread) {
     // IMPORTANT: This should be executed as application code
     // NOTE: here we should use gettid rather than dr_get_thread_id as the app code should not rely on drcontext
-    // IMPORTANT: Confirm that the TID printed below correspond to the dr_get_thread_id of the MAIN checker
+    // IMPORTANT: Confirm that the TID printed below corresponds to the dr_get_thread_id of the MAIN thread
 
     std::cout << "In create_checker_thread (TID = " << gettid() << ")" << std::endl;
     std::cout << "Address of create_checker_thread: " << (void*) create_checker_thread << std::endl;
@@ -43,14 +43,7 @@ void create_checker_thread(void *raw_app_thread) {
         std::cout << "ERROR: raw_app_thread pointer must be NULL when the thread is created" << std::endl;
     }
 
-    // Encode manually the address to the beginning of the main function - don't forget to update this
-    // if recompiling the binary or using a different one.
     int (*main_ptr)(int, char*) = (int (*)(int, char*)) NEW_THREAD_START_PTR;
-
-    // int (*main_ptr)(int, char*) = (int (*)(int, char*)) pc;
-    // TODO: see how to convert PC above to the real address
-
-
     std::cout << "Main func ptr in the original binary is: " << std::hex << (void*) main_ptr << std::dec << std::endl;
 
     std::cout << "Allocating stack" << std::endl;
@@ -62,12 +55,6 @@ void create_checker_thread(void *raw_app_thread) {
     std::cout << "Calling clone" << std::endl;
 
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
-
-    // VERY IMPORTANT: MUST FORCE THE MAIN THREAD TO SLEEP RIGHT AFTER CLONE IS CALLED
-    // OTHERWISE THE MAIN THREAD WILL MOST LIKELY FINISH BEFORE THE SECOND THREAD AND
-    // DYNAMORIO EXECUTION WILL BE STOPPED
-    // sleep(3);
-
     std::cout << "(From TID = " << gettid() << "): New pid = " << newpid << std::endl;
 
     PAST_THREAD_CREATION_STAGE = 1;
