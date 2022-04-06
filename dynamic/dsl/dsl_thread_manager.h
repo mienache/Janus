@@ -11,8 +11,10 @@
     TBD once we decide where the communication queue will be implemented.
 */
 
-extern bool MAIN_THREAD_REGISTERED;
-extern bool CHECKER_THREAD_REGISTERED;
+class AppThread;
+
+extern AppThread *main_thread;
+extern AppThread *checker_thread;
 extern int NUM_THREADS;
 extern std::atomic<bool> CHECKER_THREAD_FINISHED;
 extern std::atomic<bool> PAST_THREAD_CREATION_STAGE;
@@ -34,10 +36,9 @@ class AppThread {
 
 extern std::map <pid_t, AppThread*> app_threads;
 
-void register_thread(ThreadRole threadRole, void* drcontext);
+AppThread* register_thread(ThreadRole threadRole, void* drcontext);
 
-//void create_checker_thread(uint64_t pc);
-void create_checker_thread();
+void create_checker_thread(void *raw_app_thread);
 
 void init_num_threads(int num_threads);
 

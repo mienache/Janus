@@ -71,6 +71,19 @@ void handler_2(JANUS_CONTEXT){
 
     // IMPORTANT!
     // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
+
+
+    // TODO: in the future we will need to save the RDI register on the stack
+    // but for now this works as the thread creation only happens at the beginning of the
+    // main function. Note that R14 and R15 will also need to be saved as per the
+    // instructions of `insert_function_call_as_application`.
+    instr_t *instr = INSTR_CREATE_mov_imm(
+        drcontext,
+        opnd_create_reg(DR_REG_RDI),
+        OPND_CREATE_INTPTR(checker_thread)
+    );
+    instrlist_meta_preinsert(bb, trigger, instr);
+
     insert_function_call_as_application(janus_context, create_checker_thread);
 
 

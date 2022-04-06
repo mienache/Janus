@@ -1,6 +1,7 @@
 #include "dsl_thread_manager.h"
 
 #include <atomic>
+#include <cassert>
 #include <exception>
 #include <iostream>
 #include <iomanip>
@@ -14,8 +15,8 @@
 #include "dsl_ipc.h"
 
 std::map <pid_t, AppThread*> app_threads;
-bool MAIN_THREAD_REGISTERED;
-bool CHECKER_THREAD_REGISTERED;
+AppThread *main_thread;
+AppThread *checker_thread;
 int NUM_THREADS;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
 std::atomic<bool> PAST_THREAD_CREATION_STAGE;
@@ -23,19 +24,24 @@ void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
-//void create_checker_thread(uint64_t pc) {
-void create_checker_thread() {
+void create_checker_thread(void *raw_app_thread) {
     // IMPORTANT: This should be executed as application code
     // NOTE: here we should use gettid rather than dr_get_thread_id as the app code should not rely on drcontext
     // IMPORTANT: Confirm that the TID printed below correspond to the dr_get_thread_id of the MAIN checker
 
     std::cout << "In create_checker_thread (TID = " << gettid() << ")" << std::endl;
     std::cout << "Address of create_checker_thread: " << (void*) create_checker_thread << std::endl;
-    if (CHECKER_THREAD_REGISTERED) {
+    if (checker_thread) {
         std::cout << "Checker thread already registered - THIS SHOULD NEVER BE REACHED" << std::endl;
         return;
     }
 
+    AppThread *app_thread = (AppThread*) raw_app_thread;
+
+    // The AppThread pointer must be NULL when create thread is called
+    if (app_thread) {
+        std::cout << "ERROR: raw_app_thread pointer must be NULL when the thread is created" << std::endl;
+    }
 
     // Encode manually the address to the beginning of the main function - don't forget to update this
     // if recompiling the binary or using a different one.
@@ -55,7 +61,6 @@ void create_checker_thread() {
 
     std::cout << "Calling clone" << std::endl;
 
-    CHECKER_THREAD_REGISTERED = 1;
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
 
     // VERY IMPORTANT: MUST FORCE THE MAIN THREAD TO SLEEP RIGHT AFTER CLONE IS CALLED
@@ -79,7 +84,7 @@ void* alloc_thread_stack(size_t size)
     return (void*) sp;
 }
 
-void register_thread(ThreadRole threadRole, void *drcontext)
+AppThread* register_thread(ThreadRole threadRole, void *drcontext)
 {
     // This is executed as DynamoRIO code, so we should call dr_get_thread_id not gettid
     pid_t tid = dr_get_thread_id(drcontext);
@@ -103,6 +108,8 @@ void register_thread(ThreadRole threadRole, void *drcontext)
             std::cout << "role = UNKNOWN" << std::endl;
         }
     }
+
+    return app_thread;
 }
 
 void init_num_threads(int num_threads)
