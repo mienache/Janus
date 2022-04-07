@@ -41,6 +41,7 @@ void create_checker_thread(void *raw_app_thread) {
     // The AppThread pointer must be NULL when create thread is called
     if (app_thread) {
         std::cout << "ERROR: raw_app_thread pointer must be NULL when the thread is created" << std::endl;
+        std::cout << "raw_app_thread = " << raw_app_thread << std::endl;
     }
 
     int (*main_ptr)(int, char*) = (int (*)(int, char*)) NEW_THREAD_START_PTR;

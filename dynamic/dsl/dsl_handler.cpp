@@ -68,10 +68,11 @@ void handler_2(JANUS_CONTEXT){
     // but for now this works as the thread creation only happens at the beginning of the
     // main function. Note that R14 and R15 will also need to be saved as per the
     // instructions of `insert_function_call_as_application`.
-    instr_t *instr = INSTR_CREATE_mov_imm(
+
+    instr_t *instr = XINST_CREATE_load(
         drcontext,
         opnd_create_reg(DR_REG_RDI),
-        OPND_CREATE_INTPTR(checker_thread)
+        OPND_CREATE_ABSMEM((byte *) &checker_thread, OPSZ_8)
     );
     instrlist_meta_preinsert(bb, trigger, instr);
 
