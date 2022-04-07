@@ -40,7 +40,7 @@ extern std::map <pid_t, AppThread*> app_threads;
 
 AppThread* register_thread(ThreadRole threadRole, void* drcontext);
 
-void create_checker_thread(void *raw_app_thread);
+void run_thread(void *raw_app_thread);
 
 void init_num_threads(int num_threads);
 

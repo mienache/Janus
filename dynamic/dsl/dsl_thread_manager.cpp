@@ -25,13 +25,13 @@ void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
-void create_checker_thread(void *raw_app_thread) {
+void run_thread(void *raw_app_thread) {
     // IMPORTANT: This should be executed as application code
     // NOTE: here we should use gettid rather than dr_get_thread_id as the app code should not rely on drcontext
     // IMPORTANT: Confirm that the TID printed below corresponds to the dr_get_thread_id of the MAIN thread
 
-    std::cout << "In create_checker_thread (TID = " << gettid() << ")" << std::endl;
-    std::cout << "Address of create_checker_thread: " << (void*) create_checker_thread << std::endl;
+    std::cout << "In run_thread (TID = " << gettid() << ")" << std::endl;
+    std::cout << "Address of run_thread: " << (void*) run_thread << std::endl;
     if (checker_thread) {
         std::cout << "Checker thread already registered - THIS SHOULD NEVER BE REACHED" << std::endl;
         return;

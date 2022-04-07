@@ -69,7 +69,7 @@ void handler_2(JANUS_CONTEXT){
 
     // IMPORTANT!
     // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
-    insert_function_call_as_application(janus_context, create_checker_thread);
+    insert_function_call_as_application(janus_context, run_thread);
 
 
     // Just printing the modified basic block to identify the file easier
