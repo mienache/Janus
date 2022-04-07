@@ -11,8 +11,9 @@
 #include <sys/shm.h>
 #include <sys/types.h>
 
-#include "janus_api.h"
 #include "dsl_ipc.h"
+#include "handler.h"
+#include "janus_api.h"
 
 std::map <pid_t, AppThread*> app_threads;
 AppThread *main_thread;
@@ -104,4 +105,22 @@ void init_num_threads(int num_threads)
 {
     std::cout << "Num threads initialised to " << num_threads << std::endl;
     NUM_THREADS = num_threads;
+}
+
+void do_pre_thread_creation_maintenance(JANUS_CONTEXT)
+{
+    instr_t *trigger = get_trigger_instruction(bb,rule);
+    app_pc pc = instr_get_app_pc(trigger);
+    std::cout << "APP PC of trigger is" << (void*) pc << std::endl;
+
+    NEW_THREAD_START_PTR = (void*) pc;
+    // TODO: maybe replace the above and pass it via registers
+    // as otherwise if more threads are created it is prone to race conditions
+
+    // The jump inserted by insert_function_call_as_application will split the current basic blocks
+    // into two. Thus the rules that should be applied after that jump (i.e., starting from the instruction
+    // right after `trigger`) must be copied to the new basic block, otherwise they won't be applied.
+    instr_t *post_trigger = instr_get_next_app(trigger);
+    app_pc post_trigger_pc = instr_get_app_pc(post_trigger);
+    copy_rules_to_new_bb(post_trigger_pc, pc);
 }

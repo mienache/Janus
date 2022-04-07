@@ -4,6 +4,8 @@
 #include <atomic>
 #include <map>
 
+#include "handler.h"
+
 /*
     Create the number of threads specified in `rsched_info.number_of_threads`.
     Currently the threads are created using `fork`.
@@ -41,5 +43,11 @@ AppThread* register_thread(ThreadRole threadRole, void* drcontext);
 void create_checker_thread(void *raw_app_thread);
 
 void init_num_threads(int num_threads);
+
+// Helper function to perform the steps required before creating thread, such as forwarding the
+// rewrite rules to the new basic block that gets created after the call is inserted in the
+// original basic block. This maintenance function is needed to avoid exposing too many
+// Janus or DynamoRIO details to the Cinnamon interface.
+void do_pre_thread_creation_maintenance(JANUS_CONTEXT);
 
 #endif

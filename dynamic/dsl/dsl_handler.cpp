@@ -51,18 +51,9 @@ void handler_2(JANUS_CONTEXT){
 
     std::cout << "MAIN thread now adding instrumentation code for generating CHECKER thread" << std::endl;
 
+    do_pre_thread_creation_maintenance(janus_context);
+
     instr_t *trigger = get_trigger_instruction(bb,rule);
-    app_pc pc = instr_get_app_pc(trigger);
-    std::cout << "APP PC of trigger is" << (void*) pc << std::endl;
-
-    NEW_THREAD_START_PTR = (void*) pc; // TODO: maybe replace this with registers
-
-    // The jump inserted by insert_function_call_as_application will split the current basic blocks
-    // into two. Thus the rules that should be applied after that jump (i.e., starting from the instruction
-    // right after `trigger`) must be copied to the new basic block, otherwise they won't be applied.
-    instr_t *post_trigger = instr_get_next_app(trigger);
-    app_pc post_trigger_pc = instr_get_app_pc(post_trigger);
-    copy_rules_to_new_bb(post_trigger_pc, pc);
 
     // TODO: in the future we will need to save the RDI register on the stack
     // but for now this works as the thread creation only happens at the beginning of the
