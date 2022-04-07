@@ -38,7 +38,7 @@ class AppThread {
 
 extern std::map <pid_t, AppThread*> app_threads;
 
-AppThread* register_thread(ThreadRole threadRole, void* drcontext);
+AppThread* register_thread(char *thread_role_as_str, void* drcontext);
 
 void run_thread(void *raw_app_thread);
 

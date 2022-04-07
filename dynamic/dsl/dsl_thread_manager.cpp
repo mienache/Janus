@@ -25,6 +25,8 @@ void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
+ThreadRole get_thread_role_from_str(char *thread_role_as_str);
+
 void run_thread(void *raw_app_thread) {
     // IMPORTANT: This should be executed as application code
     // NOTE: here we should use gettid rather than dr_get_thread_id as the app code should not rely on drcontext
@@ -73,18 +75,20 @@ void* alloc_thread_stack(size_t size)
     return (void*) sp;
 }
 
-AppThread* register_thread(ThreadRole threadRole, void *drcontext)
+AppThread* register_thread(char *thread_role_as_str, void *drcontext)
 {
     // This is executed as DynamoRIO code, so we should call dr_get_thread_id not gettid
     pid_t tid = dr_get_thread_id(drcontext);
 
+    ThreadRole thread_role = get_thread_role_from_str(thread_role_as_str);
+
     AppThread *app_thread = new AppThread(tid);
-    app_thread->threadRole = threadRole;
+    app_thread->threadRole = thread_role;
     app_threads.insert(std::make_pair(tid, app_thread));
 
     std::cout << dr_get_thread_id(drcontext) << ": Thread registered" << std::endl;
 
-    switch (threadRole) {
+    switch (thread_role) {
         case MAIN: {
             std::cout << "role = MAIN" << std::endl;
             break;
@@ -123,4 +127,17 @@ void do_pre_thread_creation_maintenance(JANUS_CONTEXT)
     instr_t *post_trigger = instr_get_next_app(trigger);
     app_pc post_trigger_pc = instr_get_app_pc(post_trigger);
     copy_rules_to_new_bb(post_trigger_pc, pc);
+}
+
+ThreadRole get_thread_role_from_str(char *thread_role_as_str)
+{
+    if (thread_role_as_str == "main") {
+        return ThreadRole::MAIN;
+    }
+
+    if (thread_role_as_str == "worker") {
+        return ThreadRole::CHECKER;
+    }
+
+    return ThreadRole::UNKNOWN;
 }
