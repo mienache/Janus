@@ -74,7 +74,6 @@ void new_janus_thread(void *drcontext) {
 
 /*--- Janus Thread Init Start ---*/
 
-/*--- Janus Thread Init Finish ---*/
     if (!main_thread) {
         // If it is the first thread, register it as the main thread
         std::cout << "Registering MAIN thread" << std::endl;
@@ -85,6 +84,8 @@ void new_janus_thread(void *drcontext) {
         std::cout << "Registering CHECKER thread" << std::endl;
         checker_thread = register_thread("worker", drcontext);
     }
+
+/*--- Janus Thread Init Finish ---*/
 
 }
 
