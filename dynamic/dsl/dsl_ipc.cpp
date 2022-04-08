@@ -10,11 +10,11 @@
 
 BasicQueue *IPC_QUEUE;
 
-void create_shared_memory_area()
+BasicQueue* create_shared_memory_area()
 {
     std::cout << "Creating shared memory" << std::endl;
         
-    IPC_QUEUE = new BasicQueue;
+    return new BasicQueue;
 }
 
 

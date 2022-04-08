@@ -6,8 +6,6 @@
 #include <cstdint>
 
 
-void create_shared_memory_area();
-
 struct BasicQueue {
     int *begin; 
     int *end;
@@ -21,6 +19,8 @@ struct BasicQueue {
 };
 
 extern BasicQueue *IPC_QUEUE;
+
+BasicQueue* create_shared_memory_area();
 
 void append_value(int val);
 int consume_value();

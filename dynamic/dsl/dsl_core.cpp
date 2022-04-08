@@ -61,8 +61,6 @@ dr_init(client_id_t id)
     create_call_func_code_cache();
 
     init_routine();
-
-    create_shared_memory_area();
 }
 
 int total_num_threads;

@@ -2,16 +2,19 @@
 #include <iostream>
 #include "func.h"
 #include "util.h"
+#include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
 using namespace std;
 /*--- Global Var Decl Start ---*/
 #include <fstream>
 #include <iostream>
 #include <stdint.h>
+
 uint64_t inst_count = 0;
 
 /*--- Global Var Decl End ---*/
 
+extern BasicQueue *IPC_QUEUE;
 
 
 void exit_routine(){
@@ -23,6 +26,7 @@ void exit_routine(){
 }
 void init_routine(){
     init_num_threads(2);
+    IPC_QUEUE = create_shared_memory_area();
     /*--- Init Start ---*/
 
 /*--- Init End ---*/
