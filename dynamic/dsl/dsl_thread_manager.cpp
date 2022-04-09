@@ -15,9 +15,15 @@
 #include "handler.h"
 #include "janus_api.h"
 
-std::map <pid_t, AppThread*> app_threads;
+/*--- Thread Manager Declarations Start ---*/
+
 AppThread *main_thread;
 AppThread *checker_thread;
+
+/*--- Thread Manager Declarations Finish ---*/
+
+std::map <pid_t, AppThread*> app_threads;
+
 int NUM_THREADS;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
 std::atomic<bool> PAST_THREAD_CREATION_STAGE;

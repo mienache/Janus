@@ -5,6 +5,11 @@
 
 #include <cstdint>
 
+struct BasicQueue;
+
+/*--- IPC Declarations Start ---*/
+
+/*--- IPC Declarations Finish ---*/
 
 struct BasicQueue {
     int *begin; 

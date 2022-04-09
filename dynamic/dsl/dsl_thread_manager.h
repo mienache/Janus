@@ -6,17 +6,16 @@
 
 #include "handler.h"
 
-/*
-    Create the number of threads specified in `rsched_info.number_of_threads`.
-    Currently the threads are created using `fork`.
-    TODO: this will need to change in the future probably to clone.
-    TBD once we decide where the communication queue will be implemented.
-*/
-
 class AppThread;
+
+
+/*--- Thread Manager Declarations Start ---*/
 
 extern AppThread *main_thread;
 extern AppThread *checker_thread;
+
+/*--- Thread Manager Declarations Finish ---*/
+
 extern int NUM_THREADS;
 extern std::atomic<bool> CHECKER_THREAD_FINISHED;
 extern std::atomic<bool> PAST_THREAD_CREATION_STAGE;

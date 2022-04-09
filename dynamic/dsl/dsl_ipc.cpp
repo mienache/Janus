@@ -8,6 +8,10 @@
 #include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
 
+/*--- IPC Declarations Start ---*/
+
+/*--- IPC Declarations Finish ---*/
+
 BasicQueue *IPC_QUEUE;
 
 BasicQueue* create_shared_memory_area()
