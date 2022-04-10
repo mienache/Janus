@@ -86,9 +86,6 @@ void handler_3(JANUS_CONTEXT) {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     instr_t *post_trigger = instr_get_next(trigger);
 
-    dr_mcontext_t mc = {sizeof(mc), DR_MC_ALL};
-    dr_get_mcontext(drcontext, &mc);
-
     assert(post_trigger);
 
     // Get the number of destination operands 
