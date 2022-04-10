@@ -26,7 +26,7 @@ void exit_routine(){
 }
 void init_routine(){
     init_num_threads(2);
-    IPC_QUEUE = create_shared_memory_area();
+    IPC_QUEUE = initialise_queue();
     /*--- Init Start ---*/
 
 /*--- Init End ---*/

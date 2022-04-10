@@ -27,7 +27,7 @@ struct BasicQueue {
 
 extern BasicQueue *IPC_QUEUE;
 
-BasicQueue* create_shared_memory_area();
+BasicQueue* initialise_queue();
 
 void append_value(BasicQueue *queue, int val);
 int consume_value(BasicQueue *queue);
