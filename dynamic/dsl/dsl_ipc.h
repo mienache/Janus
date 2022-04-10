@@ -29,9 +29,9 @@ extern BasicQueue *IPC_QUEUE;
 
 BasicQueue* create_shared_memory_area();
 
-void append_value(int val);
-int consume_value();
-void communicate(uint64_t register_value);
-void add_instrumentation_code_for_communication(JANUS_CONTEXT, opnd_t dest);
+void append_value(BasicQueue *queue, int val);
+int consume_value(BasicQueue *queue);
+void communicate(BasicQueue *queue, uint64_t register_value);
+void add_instrumentation_code_for_communication(JANUS_CONTEXT, BasicQueue *queue, opnd_t dest);
 
 #endif

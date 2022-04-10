@@ -25,24 +25,24 @@ BasicQueue* create_shared_memory_area()
 }
 
 
-void append_value(int val)
+void append_value(BasicQueue *queue, int val)
 {
-    std::cout << "Adding value at IPC_QUEUE->end = " << IPC_QUEUE->end << std::endl;
+    std::cout << "Adding value at queue->end = " << queue->end << std::endl;
 
-    *(IPC_QUEUE->end) = val;
-    IPC_QUEUE->end++;
+    *(queue->end) = val;
+    queue->end++;
 
     std::cout << "Value added " << val << std::endl;
 }
 
-int consume_value()
+int consume_value(BasicQueue *queue)
 {
-    std::cout << "Reading value at IPC_QUEUE->begin = " << IPC_QUEUE->begin << std::endl;
+    std::cout << "Reading value at queue->begin = " << queue->begin << std::endl;
 
-    while(IPC_QUEUE->begin == IPC_QUEUE->end); // The queue is empty, must wait
+    while(queue->begin == queue->end); // The queue is empty, must wait
 
-    int ret = *(IPC_QUEUE->begin);
-    IPC_QUEUE->begin++;
+    int ret = *(queue->begin);
+    queue->begin++;
 
     std::cout << "Value read" << ret << std::endl;
 
@@ -50,9 +50,10 @@ int consume_value()
 }
 
 
-void communicate(uint64_t register_value) {
+void communicate(BasicQueue *queue, uint64_t register_value) {
     // TODO: rewrite this in enqueue / dequeue and use those as separate clean calls
     std::cout << gettid() << " in clean call: register_value = " << register_value << std::endl;
+    std::cout << "Queue pointer is: " << (void*) queue << std::endl;
 
     if (!PAST_THREAD_CREATION_STAGE) {
         std::cout << "Not yet past thread creation stage, skipping any communication" << std::endl;
@@ -67,12 +68,12 @@ void communicate(uint64_t register_value) {
 
     if (app_thread->threadRole == ThreadRole::MAIN) {
         std::cout << gettid() << " appending value " << register_value << std::endl;
-        append_value(register_value);
+        append_value(queue, register_value);
     }
     else {
         std::cout << gettid() << " consuming value " << register_value << std::endl;
 
-        int expected_value = consume_value();
+        int expected_value = consume_value(queue);
         if (expected_value != register_value) {
             std::cout << "DIFF: " << expected_value << " != " << register_value << std::endl;
         }
@@ -82,7 +83,7 @@ void communicate(uint64_t register_value) {
     }
 }
 
-void add_instrumentation_code_for_communication(JANUS_CONTEXT, opnd_t dest)
+void add_instrumentation_code_for_communication(JANUS_CONTEXT, BasicQueue *queue, opnd_t dest)
 {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     instr_t *post_trigger = instr_get_next(trigger);
@@ -93,6 +94,6 @@ void add_instrumentation_code_for_communication(JANUS_CONTEXT, opnd_t dest)
         return;
     }
 
-    dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 1, dest);
-
+    std::cout << "Passing queue pointer: " << (void*) queue << std::endl;
+    dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 2, OPND_CREATE_INT64(queue), dest);
 }

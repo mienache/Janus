@@ -91,7 +91,7 @@ void handler_3(JANUS_CONTEXT) {
 
     opnd_t dest = instr_get_dst(trigger, 0);
 
-    add_instrumentation_code_for_communication(janus_context, dest);
+    add_instrumentation_code_for_communication(janus_context, IPC_QUEUE, dest);
 }
 
 void wait_for_checker()
