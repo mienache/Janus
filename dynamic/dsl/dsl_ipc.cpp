@@ -1,9 +1,12 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
+#include <cassert>
 
 
 #include <iostream>
+
+#include "janus_api.h"
 
 #include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
@@ -77,4 +80,19 @@ void communicate(uint64_t register_value) {
             std::cout << "EQ: " << expected_value << " == " << register_value << std::endl;
         }
     }
+}
+
+void add_instrumentation_code_for_communication(JANUS_CONTEXT, opnd_t dest)
+{
+    instr_t *trigger = get_trigger_instruction(bb,rule);
+    instr_t *post_trigger = instr_get_next(trigger);
+
+    assert(post_trigger);
+
+    if (!opnd_is_reg(dest)) {
+        return;
+    }
+
+    dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 1, dest);
+
 }

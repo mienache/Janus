@@ -84,35 +84,14 @@ void handler_3(JANUS_CONTEXT) {
     std::cout << "Instrumenting through handler 3" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
-    instr_t *post_trigger = instr_get_next(trigger);
 
-    assert(post_trigger);
-
-    // Get the number of destination operands 
-    int num_dest_opnds = instr_num_dsts(trigger);
-    if (num_dest_opnds > 1) {
-        std::cout << "Instructions with more than 1 dest operands found" << std::endl;
+    if (!instr_num_dsts(trigger)) {
+        return;
     }
 
-    
-    // Iterate over each dest operands
-    for (int i = 0; i < num_dest_opnds; ++i) {
-        opnd_t dest = instr_get_dst(trigger, i); 
+    opnd_t dest = instr_get_dst(trigger, 0);
 
-        // If dest operand is not reigster, skip it
-        if (!opnd_is_reg(dest)) {
-            continue;
-        }
-
-        // Debug info
-        reg_id_t reg = opnd_get_reg(dest);
-        std::cout << " Passing register " << get_register_name(reg) << " to clean call" << std::endl;
-
-        std::cout << "Inserting clean call for " << dr_get_thread_id(drcontext) << " at " << (void*) instr_get_app_pc(trigger) << std::endl;
-
-        // Insert the value in the queue
-        dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 1, dest);
-    }
+    add_instrumentation_code_for_communication(janus_context, dest);
 }
 
 void wait_for_checker()

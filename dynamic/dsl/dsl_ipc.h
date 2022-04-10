@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+#include "janus_api.h"
+
 struct BasicQueue;
 
 /*--- IPC Declarations Start ---*/
@@ -30,5 +32,6 @@ BasicQueue* create_shared_memory_area();
 void append_value(int val);
 int consume_value();
 void communicate(uint64_t register_value);
+void add_instrumentation_code_for_communication(JANUS_CONTEXT, opnd_t dest);
 
 #endif
