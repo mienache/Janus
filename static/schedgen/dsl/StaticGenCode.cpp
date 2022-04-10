@@ -31,6 +31,11 @@ for (auto &func: jc.functions){
             bitmask = func.liveRegIn[I.id].bits;
             insertCustomRule<Instruction>(3,I,1, true, 0, bitmask);
         }
+
+        if( get_opcode(I) == Instruction::Load){
+            bitmask = func.liveRegIn[I.id].bits;
+            insertCustomRule<Instruction>(4,I,1, true, 0, bitmask);
+        }
     }
 }
 for (auto &F: jc.functions){
@@ -41,7 +46,7 @@ for (auto &F: jc.functions){
 
 
         std::cout << "Inserting thread wait rule at " << std::hex << F.endAddress<< std::endl;
-        insertCustomRule<Function>(4,F,5, true, 0, bitmask);
+        insertCustomRule<Function>(5,F,5, true, 0, bitmask);
 
         std::cout << std::resetiosflags(std::ios::showbase);
     }

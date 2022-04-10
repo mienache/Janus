@@ -50,40 +50,29 @@ int consume_value(BasicQueue *queue)
 }
 
 
-void communicate(BasicQueue *queue, uint64_t register_value) {
-    // TODO: rewrite this in enqueue / dequeue and use those as separate clean calls
-    std::cout << gettid() << " in clean call: register_value = " << register_value << std::endl;
-    std::cout << "Queue pointer is: " << (void*) queue << std::endl;
-
+void enqueue(BasicQueue *queue, uint64_t register_value)
+{
     if (!PAST_THREAD_CREATION_STAGE) {
         std::cout << "Not yet past thread creation stage, skipping any communication" << std::endl;
         return;
     }
 
-    static int cnt = 0;
-
-    //std::cout << dr_get_thread_id(drcontext) << " communicating " << std::endl;
-
-    AppThread *app_thread = app_threads[gettid()];
-
-    if (app_thread->threadRole == ThreadRole::MAIN) {
-        std::cout << gettid() << " appending value " << register_value << std::endl;
-        append_value(queue, register_value);
-    }
-    else {
-        std::cout << gettid() << " consuming value " << register_value << std::endl;
-
-        int expected_value = consume_value(queue);
-        if (expected_value != register_value) {
-            std::cout << "DIFF: " << expected_value << " != " << register_value << std::endl;
-        }
-        else {
-            std::cout << "EQ: " << expected_value << " == " << register_value << std::endl;
-        }
-    }
+    append_value(queue, register_value);
 }
 
-void add_instrumentation_code_for_communication(JANUS_CONTEXT, BasicQueue *queue, opnd_t dest)
+void dequeue(BasicQueue *queue, uint64_t register_value)
+{
+    int expected_value = consume_value(queue);
+    if (expected_value != register_value) {
+        std::cout << "DIFF: " << expected_value << " != " << register_value << std::endl;
+    }
+    else {
+        std::cout << "EQ: " << expected_value << " == " << register_value << std::endl;
+    }
+
+}
+
+void add_instrumentation_code_for_queue_communication(JANUS_CONTEXT, void *func, BasicQueue *queue, opnd_t dest)
 {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     instr_t *post_trigger = instr_get_next(trigger);
@@ -95,5 +84,5 @@ void add_instrumentation_code_for_communication(JANUS_CONTEXT, BasicQueue *queue
     }
 
     std::cout << "Passing queue pointer: " << (void*) queue << std::endl;
-    dr_insert_clean_call(drcontext, bb, post_trigger, (void*) communicate, false, 2, OPND_CREATE_INT64(queue), dest);
+    dr_insert_clean_call(drcontext, bb, post_trigger, (void*) func, false, 2, OPND_CREATE_INT64(queue), dest);
 }

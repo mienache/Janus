@@ -81,7 +81,11 @@ void handler_2(JANUS_CONTEXT){
 
 
 void handler_3(JANUS_CONTEXT) {
-    std::cout << "Instrumenting through handler 3" << std::endl;
+    if (!(main_thread && dr_get_thread_id(drcontext) == main_thread->pid)) {
+        return;
+    }
+
+    std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through handler 3" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
 
@@ -91,7 +95,26 @@ void handler_3(JANUS_CONTEXT) {
 
     opnd_t dest = instr_get_dst(trigger, 0);
 
-    add_instrumentation_code_for_communication(janus_context, IPC_QUEUE, dest);
+    add_instrumentation_code_for_queue_communication(janus_context, enqueue, IPC_QUEUE, dest);
+}
+
+
+void handler_4(JANUS_CONTEXT) {
+    if (!(checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid)) {
+        return;
+    }
+
+    std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through handler 4" << std::endl;
+
+    instr_t *trigger = get_trigger_instruction(bb,rule);
+
+    if (!instr_num_dsts(trigger)) {
+        return;
+    }
+
+    opnd_t dest = instr_get_dst(trigger, 0);
+
+    add_instrumentation_code_for_queue_communication(janus_context, dequeue, IPC_QUEUE, dest);
 }
 
 void wait_for_checker()
@@ -107,8 +130,8 @@ void mark_checker_thread_finished()
     CHECKER_THREAD_FINISHED = 1;
 }
 
-void handler_4(JANUS_CONTEXT) {
-    std::cout << "In handler_4: TID = " << dr_get_thread_id(drcontext) << std::endl;
+void handler_5(JANUS_CONTEXT) {
+    std::cout << "In handler_5: TID = " << dr_get_thread_id(drcontext) << std::endl;
 
     // At the end of main, MAIN thread should wait for CHECKER,
     // whilst CHECKER should mark completion when it's done.
@@ -128,6 +151,7 @@ void create_handler_table(){
     htable[1] = (void*)&handler_2;
     htable[2] = (void*)&handler_3;
     htable[3] = (void*)&handler_4;
+    htable[4] = (void*)&handler_5;
 }
 
 /*--- Dynamic Handlers Finish ---*/
