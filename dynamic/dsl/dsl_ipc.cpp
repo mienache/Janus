@@ -15,13 +15,15 @@
 
 /*--- IPC Declarations Finish ---*/
 
+const int DEFAULT_QUEUE_SIZE = 1000;
+
 BasicQueue *IPC_QUEUE;
 
 BasicQueue* initialise_queue()
 {
     std::cout << "Creating shared memory" << std::endl;
         
-    return new BasicQueue;
+    return new BasicQueue(DEFAULT_QUEUE_SIZE);
 }
 
 

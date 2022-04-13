@@ -16,10 +16,11 @@ struct BasicQueue;
 struct BasicQueue {
     int *begin; 
     int *end;
-    int v[10];
+    int *v;
 
-    BasicQueue()
+    BasicQueue(size_t queue_size)
     {
+        v = new int[queue_size];
         begin = v;
         end = v;
     }
