@@ -18,12 +18,20 @@
 const int DEFAULT_QUEUE_SIZE = 1000;
 
 BasicQueue *IPC_QUEUE;
+CometQueue *IPC_QUEUE_2;
 
 BasicQueue* initialise_queue()
 {
-    std::cout << "Creating shared memory" << std::endl;
+    std::cout << "Creating basic queue" << std::endl;
         
     return new BasicQueue(DEFAULT_QUEUE_SIZE);
+}
+
+CometQueue* initialise_comet_queue()
+{
+    std::cout << "Creating Comet queue" << std::endl;
+
+    return new CometQueue(DEFAULT_QUEUE_SIZE);
 }
 
 

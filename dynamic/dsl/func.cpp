@@ -10,11 +10,14 @@ using namespace std;
 #include <iostream>
 #include <stdint.h>
 
+#include "dsl_ipc.h"
+
 uint64_t inst_count = 0;
 
 /*--- Global Var Decl End ---*/
 
 extern BasicQueue *IPC_QUEUE;
+extern CometQueue *IPC_QUEUE_2;
 
 
 void exit_routine(){
@@ -27,6 +30,7 @@ void exit_routine(){
 void init_routine(){
     init_num_threads(2);
     IPC_QUEUE = initialise_queue();
+    IPC_QUEUE_2 = initialise_comet_queue();
     /*--- Init Start ---*/
 
 /*--- Init End ---*/

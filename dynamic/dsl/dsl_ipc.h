@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <cstdint>
+#include <cstring>
 
 #include "janus_api.h"
 
@@ -34,6 +35,8 @@ struct BasicQueue {
 struct CometQueue {
     int *z1;
     int *z2;
+    int *enqueue_ptr;
+    int *dequeue_ptr;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -63,6 +66,8 @@ struct CometQueue {
         const size_t total_size = total_pages * page_size;
 
         z1 = (int*) mmap(0, total_size, prot, flags, fd, offset);
+        memset(z1, 0, total_size);
+
         std::cout<< "Allocated Z1 at " << (void*) z1 << std::endl;
 
         int *r1 = z1 + num_items_per_zone;
@@ -78,13 +83,19 @@ struct CometQueue {
 
         std::cout<< "Z1 at " << (void*) z1 << std::endl;
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
+
+        enqueue_ptr = z1;
+        dequeue_ptr = z1; // Make dequeue ptr also point to Z1 until we implement signal handlers
+        // TODO: fix this
     }
 
 };
 
 extern BasicQueue *IPC_QUEUE;
+extern CometQueue *IPC_QUEUE_2;
 
 BasicQueue* initialise_queue();
+CometQueue* initialise_comet_queue();
 
 void append_value(BasicQueue *queue, int val);
 int consume_value(BasicQueue *queue);

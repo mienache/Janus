@@ -85,6 +85,12 @@ void new_janus_thread(void *drcontext) {
 
 /*--- Janus Thread Init Finish ---*/
 
+    if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
+        sleep(1);
+        // Make checker thread sleep for a bit until we imlement signal handlers
+        // TODO: fix this
+    }
+
 }
 
 // This is a a callback invoked whenever DynamoRIO observes a thread is about to leave

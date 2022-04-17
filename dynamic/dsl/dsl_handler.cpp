@@ -85,19 +85,57 @@ void handler_3(JANUS_CONTEXT) {
         return;
     }
 
+    if (!PAST_THREAD_CREATION_STAGE) {
+        return;
+    }
+
     std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through handler 3" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
 
     if (!instr_num_dsts(trigger)) {
+        std::cout << "No dest registers, skipping" << std::endl;
         return;
     }
 
     opnd_t dest = instr_get_dst(trigger, 0);
+    if (!opnd_is_reg(dest)) {
+        std::cout << "Operand is not register, skipping" << std::endl;
+        return;
+    }
 
-    add_instrumentation_code_for_queue_communication(janus_context, enqueue, IPC_QUEUE, dest);
+    std::cout << "Adding enqueue instruction" << std::endl;
+
+    //add_instrumentation_code_for_queue_communication(janus_context, enqueue, IPC_QUEUE, dest);
+    reg_id_t reg = opnd_get_reg(dest);
+    std::cout << " Register that should be stored is " << get_register_name(reg) << std::endl;
+
+    opnd_size_t dest_reg_size = opnd_get_size(dest);
+    instr_t *instr = XINST_CREATE_store(
+        drcontext,
+        OPND_CREATE_ABSMEM(IPC_QUEUE_2->enqueue_ptr, dest_reg_size),
+        dest
+    );
+
+    IPC_QUEUE_2->enqueue_ptr++;
+
+    instrlist_postinsert(bb, trigger, instr);
+    // TODO: must set translation
+
+    /*
+    Uncomment this to print instruction and declare `cnt_inst` before function
+    string filename = "instruction_" + to_string(++cnt_inst) + ".txt";
+    file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
+    instr_disassemble(drcontext, instr, output_file);
+    dr_close_file(output_file);
+    */
 }
 
+
+void unexpected_dequeue()
+{
+    std::cout << "ERROR: dequeue returned unexpected value" << std::endl;
+}
 
 void handler_4(JANUS_CONTEXT) {
     if (!(checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid)) {
@@ -113,8 +151,30 @@ void handler_4(JANUS_CONTEXT) {
     }
 
     opnd_t dest = instr_get_dst(trigger, 0);
+    if (!opnd_is_reg(dest)) {
+        std::cout << "Operand is not register, skipping" << std::endl;
+        return;
+    }
 
-    add_instrumentation_code_for_queue_communication(janus_context, dequeue, IPC_QUEUE, dest);
+    std::cout << "Adding dequeue instruction" << std::endl;
+
+    opnd_size_t reg_size = opnd_get_size(dest);
+    instr_t *cmp_instr = XINST_CREATE_cmp(
+        drcontext,
+        dest,
+        OPND_CREATE_ABSMEM(IPC_QUEUE_2->dequeue_ptr, reg_size)
+    );
+
+    instr_t *jmp_instr = INSTR_CREATE_jcc(
+        drcontext,
+        OP_jne,
+        opnd_create_pc((app_pc)unexpected_dequeue)
+    );
+
+    instrlist_meta_postinsert(bb, trigger, jmp_instr);
+    instrlist_meta_postinsert(bb, trigger, cmp_instr);
+
+    IPC_QUEUE_2->dequeue_ptr++;
 }
 
 void wait_for_checker()
