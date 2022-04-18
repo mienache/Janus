@@ -44,6 +44,27 @@ void handler_1(JANUS_CONTEXT){
 
 void handler_2(JANUS_CONTEXT){
     std::cout << "Instrumenting through handler 2" << std::endl;
+
+    instr_t *trigger = get_trigger_instruction(bb,rule);
+
+
+    // TODO: the above logic will probably need to be moved in a different location but this will do for now
+    void *queue_address;
+    if (main_thread && dr_get_thread_id(drcontext) == main_thread->pid) {
+        queue_address = IPC_QUEUE_2->enqueue_ptr;
+    }
+    else if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
+        queue_address = IPC_QUEUE_2->dequeue_ptr;
+    }
+
+    // Instruction for loading the enqueue / dequeue ptr in R15
+    instr_t *instr = XINST_CREATE_load_int(
+        drcontext,
+        opnd_create_reg(DR_REG_R13),
+        OPND_CREATE_INTPTR(queue_address)
+    );
+    instrlist_meta_preinsert(bb, trigger, instr);
+
     if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
         std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
         return;
@@ -53,14 +74,12 @@ void handler_2(JANUS_CONTEXT){
 
     do_pre_thread_creation_maintenance(janus_context);
 
-    instr_t *trigger = get_trigger_instruction(bb,rule);
-
     // TODO: in the future we will need to save the RDI register on the stack
     // but for now this works as the thread creation only happens at the beginning of the
     // main function. Note that R14 and R15 will also need to be saved as per the
     // instructions of `insert_function_call_as_application`.
 
-    instr_t *instr = XINST_CREATE_load(
+    instr = XINST_CREATE_load(
         drcontext,
         opnd_create_reg(DR_REG_RDI),
         OPND_CREATE_ABSMEM((byte *) &checker_thread, OPSZ_8)
@@ -79,6 +98,18 @@ void handler_2(JANUS_CONTEXT){
     dr_close_file(output_file);
 }
 
+
+reg_id_t get_64_equivalent_reg(reg_id_t reg)
+{
+    if (reg_get_size(reg) == OPSZ_8) {
+        return reg;
+    }
+    if (reg_get_size(reg) == OPSZ_4) {
+        return reg_32_to_64(reg);
+    }
+    std::cout << "Warning! Register size is less than 32" << std::endl;
+    return reg;
+}
 
 void handler_3(JANUS_CONTEXT) {
     if (!(main_thread && dr_get_thread_id(drcontext) == main_thread->pid)) {
@@ -108,25 +139,33 @@ void handler_3(JANUS_CONTEXT) {
 
     //add_instrumentation_code_for_queue_communication(janus_context, enqueue, IPC_QUEUE, dest);
     reg_id_t reg = opnd_get_reg(dest);
-    std::cout << " Register that should be stored is " << get_register_name(reg) << std::endl;
+    std::cout << " Original register is " << get_register_name(reg) << std::endl;
+    reg_id_t reg64 = get_64_equivalent_reg(reg);
 
-    opnd_size_t dest_reg_size = opnd_get_size(dest);
-    instr_t *instr = XINST_CREATE_store(
+    // TODO: OPND_CREATE_MEM32 below should be changed to MEM64 etc. depending on the size of the register
+
+    instr_t *enqueue_instr = XINST_CREATE_store(
         drcontext,
-        OPND_CREATE_ABSMEM(IPC_QUEUE_2->enqueue_ptr, dest_reg_size),
-        dest
+        OPND_CREATE_MEM32(DR_REG_R13, 0),
+        opnd_create_reg(reg)
     );
 
-    IPC_QUEUE_2->enqueue_ptr++;
+    instr_t *increment_R15_instr = XINST_CREATE_add(
+        drcontext,
+        opnd_create_reg(DR_REG_R13),
+        OPND_CREATE_INT32(4)
+    );
 
-    instrlist_postinsert(bb, trigger, instr);
+    instrlist_postinsert(bb, trigger, increment_R15_instr);
+    instrlist_meta_postinsert(bb, trigger, enqueue_instr);
     // TODO: must set translation
 
+
     /*
-    Uncomment this to print instruction and declare `cnt_inst` before function
+    // Uncomment this to print instruction and declare `cnt_inst` before function
     string filename = "instruction_" + to_string(++cnt_inst) + ".txt";
     file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-    instr_disassemble(drcontext, instr, output_file);
+    instr_disassemble(drcontext, enqueue_instr, output_file);
     dr_close_file(output_file);
     */
 }
@@ -158,11 +197,15 @@ void handler_4(JANUS_CONTEXT) {
 
     std::cout << "Adding dequeue instruction" << std::endl;
 
-    opnd_size_t reg_size = opnd_get_size(dest);
+    reg_id_t reg = opnd_get_reg(dest);
+    std::cout << " Original register is " << get_register_name(reg) << std::endl;
+    reg_id_t reg64 = get_64_equivalent_reg(reg);
+    std::cout << " Register that should be compared against dequeue is " << get_register_name(reg64) << std::endl;
+
     instr_t *cmp_instr = XINST_CREATE_cmp(
         drcontext,
-        dest,
-        OPND_CREATE_ABSMEM(IPC_QUEUE_2->dequeue_ptr, reg_size)
+        opnd_create_reg(reg),
+        OPND_CREATE_MEM32(DR_REG_R13, 0)
     );
 
     instr_t *jmp_instr = INSTR_CREATE_jcc(
@@ -171,15 +214,30 @@ void handler_4(JANUS_CONTEXT) {
         opnd_create_pc((app_pc)unexpected_dequeue)
     );
 
+    // IPC_QUEUE_2->dequeue_ptr++;
+    instr_t *increment_R15_instr = XINST_CREATE_add(
+        drcontext,
+        opnd_create_reg(DR_REG_R13),
+        OPND_CREATE_INT32(4)
+    );
+
+    instrlist_meta_postinsert(bb, trigger, increment_R15_instr);
     instrlist_meta_postinsert(bb, trigger, jmp_instr);
     instrlist_meta_postinsert(bb, trigger, cmp_instr);
-
-    IPC_QUEUE_2->dequeue_ptr++;
 }
 
 void wait_for_checker()
 {
     std::cout << "Thread " << gettid() << " now waiting for checker thread" << std::endl;
+
+    /*
+    // Uncomment this to print soome values from the queue
+    int *ptr = IPC_QUEUE_2->z1;
+    for (int i = 0; i < 4; ++i) {
+        //std::cout << "At " << i << " val = " << (void*) (IPC_QUEUE_2->z1[i - 1]) << std::endl;
+        std::cout << "At " << i << " val = " << (IPC_QUEUE_2->z1[i - 1]) << std::endl;
+    }
+    */
     while (!CHECKER_THREAD_FINISHED);
     std::cout << "Thread " << gettid() << " finished waiting for checker" << std::endl;
 }

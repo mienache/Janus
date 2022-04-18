@@ -37,6 +37,8 @@ struct CometQueue {
     int *z2;
     int *enqueue_ptr;
     int *dequeue_ptr;
+    int *r1;
+    int *r2;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -70,12 +72,12 @@ struct CometQueue {
 
         std::cout<< "Allocated Z1 at " << (void*) z1 << std::endl;
 
-        int *r1 = z1 + num_items_per_zone;
+        r1 = z1 + num_items_per_zone;
 
         std::cout<< "Trying to deallocate at " << (void*) r1 << std::endl;
         std::cout<< "munmap successful? : " << munmap(r1, page_size) << std::endl;
 
-        int *r2 = z1 + 2 * num_items_per_zone + num_items_per_page;
+        r2 = z1 + 2 * num_items_per_zone + num_items_per_page;
         std::cout<< "Trying to deallocate at " << (void*) r2 << std::endl;
         std::cout<< "munmap successful? : " << munmap(r2, page_size) << std::endl;
 
