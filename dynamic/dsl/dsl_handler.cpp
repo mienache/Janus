@@ -157,7 +157,7 @@ void handler_3(JANUS_CONTEXT) {
     );
 
     instrlist_postinsert(bb, trigger, increment_R15_instr);
-    instrlist_meta_postinsert(bb, trigger, enqueue_instr);
+    instrlist_postinsert(bb, trigger, enqueue_instr);
     // TODO: must set translation
 
 
@@ -223,7 +223,7 @@ void handler_4(JANUS_CONTEXT) {
 
     instrlist_meta_postinsert(bb, trigger, increment_R15_instr);
     instrlist_meta_postinsert(bb, trigger, jmp_instr);
-    instrlist_meta_postinsert(bb, trigger, cmp_instr);
+    instrlist_postinsert(bb, trigger, cmp_instr);
 }
 
 void wait_for_checker()

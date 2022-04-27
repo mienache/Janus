@@ -87,8 +87,9 @@ struct CometQueue {
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
 
         enqueue_ptr = z1;
-        dequeue_ptr = z1; // Make dequeue ptr also point to Z1 until we implement signal handlers
-        // TODO: fix this
+        dequeue_ptr = r2;
+
+        // TODO: complete signal_handler
     }
 
 };

@@ -22,6 +22,8 @@ exit_janus_thread(void *drcontext);
 static void
 call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT);
 
+dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo);
+
 /* Handler table */
 void **htable = NULL;
 
@@ -37,6 +39,7 @@ dr_init(client_id_t id)
     dr_register_bb_event(event_basic_block);    
     dr_register_thread_init_event(new_janus_thread);
     dr_register_thread_exit_event(exit_janus_thread);
+    dr_register_signal_event(signal_handler);
 
     /* Initialise Janus components and file Janus global info */
     janus_init(id);
@@ -240,4 +243,13 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT) {
 
     //call the corresponding handler
     fhandler(janus_context);
+}
+
+dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo) 
+{
+    // TODO: this will need to make one thread sleep while the other one completes its part of the queue
+
+    reg_set_value(DR_REG_R13, siginfo->raw_mcontext, IPC_QUEUE_2->z1);
+
+    return DR_SIGNAL_SUPPRESS;
 }
