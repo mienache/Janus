@@ -1,5 +1,7 @@
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
+#include <ucontext.h>
 
 #include <iostream>
 
@@ -90,7 +92,7 @@ void new_janus_thread(void *drcontext) {
 
     if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
         sleep(1);
-        // Make checker thread sleep for a bit until we imlement signal handlers
+        // Make checker thread sleep for a bit until we implement signal handlers
         // TODO: fix this
     }
 
@@ -109,6 +111,18 @@ void exit_janus_thread(void *drcontext) {
     else {
         std::cout << "UNKNOWN thread leaving." << std::endl;
     }
+
+    dr_mcontext_t mcontext = {sizeof(mcontext), DR_MC_ALL};
+    dr_get_mcontext(drcontext, &mcontext);
+
+    // Mark the thread's corresponding zone to be free now
+    if (mcontext.r13 < IPC_QUEUE_2->r1) {
+        IPC_QUEUE_2->is_z1_free = 1;
+    }
+    else {
+        IPC_QUEUE_2->is_z2_free = 1;
+    }
+
     exit_routine();
 }
 
@@ -248,8 +262,33 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT) {
 dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo) 
 {
     // TODO: this will need to make one thread sleep while the other one completes its part of the queue
+    // TODO: check this the signal is SIGSEGV otherwise deliver it
+    
 
-    reg_set_value(DR_REG_R13, siginfo->raw_mcontext, IPC_QUEUE_2->z1);
+    // TODO: check for potential deadlocks
+    if (siginfo->sig != SIGSEGV) {
+        std::cout << "Other signal " << std::endl;
+        return DR_SIGNAL_DELIVER;
+    }
 
-    return DR_SIGNAL_SUPPRESS;
+    if (siginfo->access_address == IPC_QUEUE_2->r2) {
+        std::cout << "Thread " << dr_get_thread_id(drcontext) << " starts spinlocking..." << std::endl;
+        IPC_QUEUE_2->is_z2_free = 1;
+        while (!IPC_QUEUE_2->is_z1_free);
+        IPC_QUEUE_2->is_z1_free = 0;
+        reg_set_value(DR_REG_R13, siginfo->raw_mcontext, IPC_QUEUE_2->z1);
+        std::cout << "Thread " << dr_get_thread_id(drcontext) << " finished spinlocking..." << std::endl;
+        return DR_SIGNAL_SUPPRESS;
+    }
+    else if (siginfo->access_address == IPC_QUEUE_2->r1) {
+        IPC_QUEUE_2->is_z1_free = 1;
+        while (!IPC_QUEUE_2->is_z2_free);
+        IPC_QUEUE_2->is_z2_free = 0;
+        reg_set_value(DR_REG_R13, siginfo->raw_mcontext, IPC_QUEUE_2->z2);
+        return DR_SIGNAL_SUPPRESS;
+    }
+
+    // Unkown SIGSEGV, deliver to application
+    return DR_SIGNAL_DELIVER;
 }
+

@@ -39,6 +39,8 @@ struct CometQueue {
     int *dequeue_ptr;
     int *r1;
     int *r2;
+    bool is_z1_free;
+    bool is_z2_free;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -88,6 +90,9 @@ struct CometQueue {
 
         enqueue_ptr = z1;
         dequeue_ptr = r2;
+
+        is_z1_free = 0;
+        is_z2_free = 1;
 
         // TODO: complete signal_handler
     }
