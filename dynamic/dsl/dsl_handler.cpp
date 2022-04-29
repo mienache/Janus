@@ -142,11 +142,9 @@ void handler_3(JANUS_CONTEXT) {
     std::cout << " Original register is " << get_register_name(reg) << std::endl;
     reg_id_t reg64 = get_64_equivalent_reg(reg);
 
-    // TODO: OPND_CREATE_MEM32 below should be changed to MEM64 etc. depending on the size of the register
-
     instr_t *enqueue_instr = XINST_CREATE_store(
         drcontext,
-        OPND_CREATE_MEM32(DR_REG_R13, 0),
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(DR_REG_R13, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0),
         opnd_create_reg(reg)
     );
     instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
@@ -154,7 +152,7 @@ void handler_3(JANUS_CONTEXT) {
     instr_t *increment_R15_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(DR_REG_R13),
-        OPND_CREATE_INT32(4)
+        OPND_CREATE_INT32(8)
     );
 
     instrlist_postinsert(bb, trigger, increment_R15_instr);
@@ -204,7 +202,7 @@ void handler_4(JANUS_CONTEXT) {
     instr_t *cmp_instr = XINST_CREATE_cmp(
         drcontext,
         opnd_create_reg(reg),
-        OPND_CREATE_MEM32(DR_REG_R13, 0)
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(DR_REG_R13, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0)
     );
 
     instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
@@ -219,7 +217,7 @@ void handler_4(JANUS_CONTEXT) {
     instr_t *increment_R15_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(DR_REG_R13),
-        OPND_CREATE_INT32(4)
+        OPND_CREATE_INT32(8)
     );
 
     instrlist_meta_postinsert(bb, trigger, increment_R15_instr);
