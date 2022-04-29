@@ -34,7 +34,7 @@ void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
-ThreadRole get_thread_role_from_str(char *thread_role_as_str);
+ThreadRole get_thread_role_from_str(const char *thread_role_as_str);
 
 void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
 {
@@ -100,7 +100,7 @@ void run_thread(void *raw_app_thread) {
         std::cout << "raw_app_thread = " << raw_app_thread << std::endl;
     }
 
-    int (*main_ptr)(int, char*) = (int (*)(int, char*)) NEW_THREAD_START_PTR;
+    int (*main_ptr) (void*) = (int (*) (void*)) NEW_THREAD_START_PTR;
     std::cout << "Main func ptr in the original binary is: " << std::hex << (void*) main_ptr << std::dec << std::endl;
 
     std::cout << "Allocating stack" << std::endl;
@@ -128,7 +128,7 @@ void* alloc_thread_stack(size_t size)
     return (void*) sp;
 }
 
-AppThread* register_thread(char *thread_role_as_str, void *drcontext)
+AppThread* register_thread(const char *thread_role_as_str, void *drcontext)
 {
     // This is executed as DynamoRIO code, so we should call dr_get_thread_id not gettid
     pid_t tid = dr_get_thread_id(drcontext);
@@ -182,7 +182,7 @@ void do_pre_thread_creation_maintenance(JANUS_CONTEXT)
     copy_rules_to_new_bb(post_trigger_pc, pc);
 }
 
-ThreadRole get_thread_role_from_str(char *thread_role_as_str)
+ThreadRole get_thread_role_from_str(const char *thread_role_as_str)
 {
     if (thread_role_as_str == "main") {
         return ThreadRole::MAIN;

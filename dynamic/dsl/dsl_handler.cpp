@@ -88,7 +88,7 @@ void handler_2(JANUS_CONTEXT){
 
     // IMPORTANT!
     // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
-    insert_function_call_as_application(janus_context, run_thread);
+    insert_function_call_as_application(janus_context, (void*) run_thread);
 
 
     // Just printing the modified basic block to identify the file easier
@@ -261,11 +261,11 @@ void handler_5(JANUS_CONTEXT) {
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         // insert_function_call_as_application(janus_context, wait_for_checker);
         std::cout << "Addres of wait_for_checker: " << (void*) wait_for_checker << std::endl;
-        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), wait_for_checker, false, 0);
+        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), (void*) wait_for_checker, false, 0);
     }
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         // insert_function_call_as_application(janus_context, mark_checker_thread_finished);
-        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), mark_checker_thread_finished, false, 0);
+        dr_insert_clean_call(drcontext, bb, instrlist_first(bb), (void*) mark_checker_thread_finished, false, 0);
     }
 }
 
