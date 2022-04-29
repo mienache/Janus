@@ -51,10 +51,10 @@ void handler_2(JANUS_CONTEXT){
     // TODO: the above logic will probably need to be moved in a different location but this will do for now
     void *queue_address;
     if (main_thread && dr_get_thread_id(drcontext) == main_thread->pid) {
-        queue_address = IPC_QUEUE_2->enqueue_ptr;
+        queue_address = IPC_QUEUE_2->z1;
     }
     else if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
-        queue_address = IPC_QUEUE_2->dequeue_ptr;
+        queue_address = IPC_QUEUE_2->r2;
     }
 
     // Instruction for loading the enqueue / dequeue ptr in R15
@@ -230,6 +230,10 @@ void handler_4(JANUS_CONTEXT) {
 void wait_for_checker()
 {
     std::cout << "Thread " << gettid() << " now waiting for checker thread" << std::endl;
+
+    // Free all zones in the queue:
+    IPC_QUEUE_2->is_z1_free = 1;
+    IPC_QUEUE_2->is_z2_free = 1;
 
     /*
     // Uncomment this to print soome values from the queue

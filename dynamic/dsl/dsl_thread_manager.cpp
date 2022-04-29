@@ -42,11 +42,20 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
     std::cout << "Caught segfault at address " << info->si_addr << std::endl;
     std::cout << "PC = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RIP] << std::endl;
     std::cout << "R13 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
-    std::cout << "Changing R13" << std::endl;
-    ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
-    IPC_QUEUE_2->dequeue_ptr = IPC_QUEUE_2->z1;
+
+    if (info->si_addr == IPC_QUEUE_2->r1) {
+        std::cout << "Thread " << gettid() << " blocked in R1; start spinlocking..." << std::endl;
+        while (!IPC_QUEUE_2->is_z2_free);
+        std::cout << "Thread " << gettid() << " finished spinlocking and entering Z2" << std::endl;
+        ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z2;
+    }
+    else if (info->si_addr == IPC_QUEUE_2->r2) {
+        std::cout << "Thread " << gettid() << " blocked in R2; start spinlocking..." << std::endl;
+        while (!IPC_QUEUE_2->is_z1_free);
+        std::cout << "Thread " << gettid() << " finished spinlocking and entering Z1" << std::endl;
+        ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
+    }
     std::cout << "R13 after changing = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
-    std::cout.flush();
 }
 
 struct sigaction sa;

@@ -92,13 +92,6 @@ void new_janus_thread(void *drcontext) {
     }
 
 /*--- Janus Thread Init Finish ---*/
-
-    if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
-        sleep(1);
-        // Make checker thread sleep for a bit until we implement signal handlers
-        // TODO: fix this
-    }
-
 }
 
 // This is a a callback invoked whenever DynamoRIO observes a thread is about to leave
@@ -113,17 +106,6 @@ void exit_janus_thread(void *drcontext) {
     }
     else {
         std::cout << "UNKNOWN thread leaving." << std::endl;
-    }
-
-    dr_mcontext_t mcontext = {sizeof(mcontext), DR_MC_ALL};
-    dr_get_mcontext(drcontext, &mcontext);
-
-    // Mark the thread's corresponding zone to be free now
-    if (mcontext.r13 < IPC_QUEUE_2->r1) {
-        IPC_QUEUE_2->is_z1_free = 1;
-    }
-    else {
-        IPC_QUEUE_2->is_z2_free = 1;
     }
 
     exit_routine();

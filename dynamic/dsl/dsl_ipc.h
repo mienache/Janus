@@ -35,8 +35,6 @@ struct BasicQueue {
 struct CometQueue {
     int *z1;
     int *z2;
-    int *enqueue_ptr;
-    int *dequeue_ptr;
     int *r1;
     int *r2;
     bool is_z1_free;
@@ -87,9 +85,6 @@ struct CometQueue {
 
         std::cout<< "Z1 at " << (void*) z1 << std::endl;
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
-
-        enqueue_ptr = z1;
-        dequeue_ptr = r1;
 
         is_z1_free = 0;
         is_z2_free = 1;
