@@ -45,13 +45,20 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
 
     if (info->si_addr == IPC_QUEUE_2->r1) {
         std::cout << "Thread " << gettid() << " blocked in R1; start spinlocking..." << std::endl;
-        while (!IPC_QUEUE_2->is_z2_free);
+        while (!IPC_QUEUE_2->is_z2_free) {
+            // TODO: investigate if usleep is needed indeed.
+            // This was added because on some runs the execution does not finish and the thread
+            // keeps waiting in the while loop even though the condition is modified by the other thread
+            usleep(100);
+        }
         std::cout << "Thread " << gettid() << " finished spinlocking and entering Z2" << std::endl;
         ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z2;
     }
     else if (info->si_addr == IPC_QUEUE_2->r2) {
         std::cout << "Thread " << gettid() << " blocked in R2; start spinlocking..." << std::endl;
-        while (!IPC_QUEUE_2->is_z1_free);
+        while (!IPC_QUEUE_2->is_z1_free) {
+            usleep(100);
+        }
         std::cout << "Thread " << gettid() << " finished spinlocking and entering Z1" << std::endl;
         ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
     }
