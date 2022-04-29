@@ -10,6 +10,9 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/types.h>
+#include <sys/mman.h>
+#include <signal.h>
+#include <ucontext.h>
 
 #include "dsl_ipc.h"
 #include "handler.h"
@@ -33,10 +36,38 @@ void* alloc_thread_stack(size_t size);
 
 ThreadRole get_thread_role_from_str(char *thread_role_as_str);
 
+void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
+{
+    std::cout << "Sig number = " << sig << std::endl;
+    std::cout << "Caught segfault at address " << info->si_addr << std::endl;
+    std::cout << "PC = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RIP] << std::endl;
+    std::cout << "R13 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
+    std::cout << "Changing R13" << std::endl;
+    ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
+    IPC_QUEUE_2->dequeue_ptr = IPC_QUEUE_2->z1;
+    std::cout << "R13 after changing = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
+    std::cout.flush();
+}
+
+struct sigaction sa;
+void setup_signal_handler()
+{
+    memset(&sa, 0, sizeof(struct sigaction));
+    sigemptyset(&sa.sa_mask);
+    sa.sa_sigaction = segfault_sigaction;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGSEGV, &sa, NULL);
+}
+
+
 void run_thread(void *raw_app_thread) {
     // IMPORTANT: This should be executed as application code
     // NOTE: here we should use gettid rather than dr_get_thread_id as the app code should not rely on drcontext
     // IMPORTANT: Confirm that the TID printed below corresponds to the dr_get_thread_id of the MAIN thread
+
+    // Setting up the signal handler
+    // TODO: in the future we might want to separate this from the run_thread method
+    setup_signal_handler();
 
     std::cout << "In run_thread (TID = " << gettid() << ")" << std::endl;
     std::cout << "Address of run_thread: " << (void*) run_thread << std::endl;

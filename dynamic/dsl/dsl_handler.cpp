@@ -170,7 +170,6 @@ void handler_3(JANUS_CONTEXT) {
     */
 }
 
-
 void unexpected_dequeue()
 {
     std::cout << "ERROR: dequeue returned unexpected value" << std::endl;
@@ -207,6 +206,8 @@ void handler_4(JANUS_CONTEXT) {
         opnd_create_reg(reg),
         OPND_CREATE_MEM32(DR_REG_R13, 0)
     );
+
+    instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
 
     instr_t *jmp_instr = INSTR_CREATE_jcc(
         drcontext,
