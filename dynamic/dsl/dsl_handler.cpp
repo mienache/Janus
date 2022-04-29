@@ -149,6 +149,7 @@ void handler_3(JANUS_CONTEXT) {
         OPND_CREATE_MEM32(DR_REG_R13, 0),
         opnd_create_reg(reg)
     );
+    instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
 
     instr_t *increment_R15_instr = XINST_CREATE_add(
         drcontext,
@@ -158,7 +159,6 @@ void handler_3(JANUS_CONTEXT) {
 
     instrlist_postinsert(bb, trigger, increment_R15_instr);
     instrlist_postinsert(bb, trigger, enqueue_instr);
-    // TODO: must set translation
 
 
     /*
