@@ -12,6 +12,8 @@
 #include "janus_api.h"
 #include "handler.h"
 
+const reg_id_t QUEUE_PTR_REG = DR_REG_R13;
+
 void print_func_entry_msg(void *drcontext, string func_name)
 {
     string thread_role;
@@ -60,7 +62,7 @@ void handler_2(JANUS_CONTEXT){
     // Instruction for loading the enqueue / dequeue ptr in R15
     instr_t *instr = XINST_CREATE_load_int(
         drcontext,
-        opnd_create_reg(DR_REG_R13),
+        opnd_create_reg(QUEUE_PTR_REG),
         OPND_CREATE_INTPTR(queue_address)
     );
     instrlist_meta_preinsert(bb, trigger, instr);
@@ -144,14 +146,14 @@ void handler_3(JANUS_CONTEXT) {
 
     instr_t *enqueue_instr = XINST_CREATE_store(
         drcontext,
-        reg_is_32bit(reg) ? OPND_CREATE_MEM32(DR_REG_R13, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0),
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0),
         opnd_create_reg(reg)
     );
     instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
 
     instr_t *increment_R15_instr = XINST_CREATE_add(
         drcontext,
-        opnd_create_reg(DR_REG_R13),
+        opnd_create_reg(QUEUE_PTR_REG),
         OPND_CREATE_INT32(8)
     );
 
@@ -202,7 +204,7 @@ void handler_4(JANUS_CONTEXT) {
     instr_t *cmp_instr = XINST_CREATE_cmp(
         drcontext,
         opnd_create_reg(reg),
-        reg_is_32bit(reg) ? OPND_CREATE_MEM32(DR_REG_R13, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0)
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0)
     );
 
     instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
@@ -216,7 +218,7 @@ void handler_4(JANUS_CONTEXT) {
     // IPC_QUEUE_2->dequeue_ptr++;
     instr_t *increment_R15_instr = XINST_CREATE_add(
         drcontext,
-        opnd_create_reg(DR_REG_R13),
+        opnd_create_reg(QUEUE_PTR_REG),
         OPND_CREATE_INT32(8)
     );
 
