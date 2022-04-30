@@ -147,32 +147,7 @@ string get_basic_block_filename(void *drcontext, bool is_original_bb)
     return filename;
 }
 
-/*
-Global variable for holding the rules that need to be forwarded in the case of an exception.
-Consider the following basic block:
 
-I1
-I2
-I3
-I4
-I5
-
-If an exception happens at I3, after the signal handler deals with it, when execution is resumed
-from I3, DynamoRIO will consdier I3-I5 to be a new basic block. Thus, all rules from I1 must be
-forwarded to I3. In the case of COMET, the `bb_to_required_rules` will be filled in the DR's
-event signal handler.
-
-The first field of the pair corresponds to the thread ID. The second one is the start of the
-basic block. The value of the map (the set) holds the starting addresses of the basic blocks
-from which the rules should be forwarded.
-*/
-std::map <pair<int, long long>, std::set<long> > bb_to_required_rules;
-
-/*
-Global variable to hold the current basic block for each thread. This will be needed in the
-signal event handler of DynamoRIO to fill in bb_to_required_rules
-*/
-std::map <int, long long > tid_to_curr_bb;
 
 /* Main execution loop: this will be executed at every initial encounter of new basic block */
 static dr_emit_flags_t
@@ -183,11 +158,11 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     PCAddress bbAddr = (PCAddress)dr_fragment_app_pc(tag);
 
     const long long tid = dr_get_thread_id(drcontext);
-    tid_to_curr_bb[tid] = bbAddr;
+    AppThread *curr_thread = app_threads[tid];
+    curr_thread->curr_bb = bbAddr;
 
-    const std::pair<int, long long> tidBBPair = std::make_pair(tid, bbAddr);
-    if (bb_to_required_rules.find(tidBBPair) != bb_to_required_rules.end()) {
-        for (auto fromBBAddr : bb_to_required_rules[tidBBPair])  {
+    if (curr_thread->bb_to_required_rules.find(bbAddr) != curr_thread->bb_to_required_rules.end()) {
+        for (auto fromBBAddr : curr_thread->bb_to_required_rules[bbAddr])  {
             std::cout << "Forwarding rules from " << (void*) fromBBAddr << " to " << (void*) bbAddr << std::endl;
             copy_rules_to_new_bb(bbAddr, fromBBAddr);
         }
@@ -296,9 +271,9 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
 
     if (siginfo->access_address == IPC_QUEUE_2->r1 || siginfo->access_address == IPC_QUEUE_2->r2) {
         const int tid = dr_get_thread_id(drcontext);
-        const long long pc = siginfo->mcontext->pc;
-        const long long curr_bb_addr = tid_to_curr_bb[tid];
-        bb_to_required_rules[std::make_pair(dr_get_thread_id(drcontext), pc)].insert(curr_bb_addr);
+        AppThread *curr_thread = app_threads[tid];
+        const uint64_t pc = siginfo->mcontext->pc;
+        curr_thread->bb_to_required_rules[pc].insert(curr_thread->curr_bb);
     }
 
     return DR_SIGNAL_DELIVER;

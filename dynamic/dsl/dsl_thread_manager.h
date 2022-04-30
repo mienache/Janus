@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <map>
+#include <set>
 
 #include "handler.h"
 
@@ -31,6 +32,31 @@ class AppThread {
   public:
     pid_t pid;
     ThreadRole threadRole;
+
+    /*
+    The current basic block processed by the thread.
+    This field is used for thread-specific instrumentation.
+    To be set in the basic block handler before the code is
+    executed from the code cache.
+    */
+    uint64_t curr_bb;
+
+
+    /*
+    Thread-specific variable for holding the rules that need to be forwarded in the case of an exception.
+    Consider the following basic block:
+
+    I1 -> I2 -> I3 -> I4 -> I5
+
+    If an exception happens at I3, after the signal handler deals with it, when execution is resumed
+    from I3, DynamoRIO will consdier I3-I5 to be a new basic block. Thus, all rules from I1 must be
+    forwarded to I3. In the case of COMET, the `bb_to_required_rules` will be filled in the DR's
+    event signal handler.
+
+    The key of the map is the start of the basic block. The value of the map (the set) holds the
+    starting addresses of the basic blocks from which the rules should be forwarded.
+    */
+    std::map <int64_t, std::set<long> > bb_to_required_rules;
 
     AppThread(pid_t pid_): pid(pid_) {}
 };
