@@ -37,6 +37,8 @@ struct CometQueue {
     void *z2;
     void *r1;
     void *r2;
+    void *enqueue_pointer;
+    void *dequeue_pointer;
     bool is_z1_free;
     bool is_z2_free;
 
@@ -82,10 +84,13 @@ struct CometQueue {
         std::cout<< "Trying to deallocate at " << (void*) r2 << std::endl;
         std::cout<< "munmap successful? : " << munmap(r2, page_size) << std::endl;
 
-        z2 = z1 + num_items_per_zone + num_items_per_page;
+        z2 = z1 + (num_items_per_zone + num_items_per_page) * item_size;
 
         std::cout<< "Z1 at " << (void*) z1 << std::endl;
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
+
+        enqueue_pointer = z1;
+        dequeue_pointer = r2;
 
         is_z1_free = 0;
         is_z2_free = 1;

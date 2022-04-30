@@ -59,14 +59,6 @@ void handler_2(JANUS_CONTEXT){
         queue_address = IPC_QUEUE_2->r2;
     }
 
-    // Instruction for loading the enqueue / dequeue ptr in R15
-    instr_t *instr = XINST_CREATE_load_int(
-        drcontext,
-        opnd_create_reg(QUEUE_PTR_REG),
-        OPND_CREATE_INTPTR(queue_address)
-    );
-    instrlist_meta_preinsert(bb, trigger, instr);
-
     if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
         std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
         return;
@@ -81,7 +73,7 @@ void handler_2(JANUS_CONTEXT){
     // main function. Note that R14 and R15 will also need to be saved as per the
     // instructions of `insert_function_call_as_application`.
 
-    instr = XINST_CREATE_load(
+    instr_t *instr = XINST_CREATE_load(
         drcontext,
         opnd_create_reg(DR_REG_RDI),
         OPND_CREATE_ABSMEM((byte *) &checker_thread, OPSZ_8)
@@ -144,6 +136,12 @@ void handler_3(JANUS_CONTEXT) {
     std::cout << " Original register is " << get_register_name(reg) << std::endl;
     reg_id_t reg64 = get_64_equivalent_reg(reg);
 
+    instr_t *load_enqueue_ptr_instr = XINST_CREATE_load_int(
+        drcontext,
+        opnd_create_reg(QUEUE_PTR_REG),
+        OPND_CREATE_INTPTR(IPC_QUEUE_2->enqueue_pointer)
+    );
+
     instr_t *enqueue_instr = XINST_CREATE_store(
         drcontext,
         reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0),
@@ -151,14 +149,22 @@ void handler_3(JANUS_CONTEXT) {
     );
     instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
 
-    instr_t *increment_R15_instr = XINST_CREATE_add(
+    instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(QUEUE_PTR_REG),
         OPND_CREATE_INT32(8)
     );
 
-    instrlist_postinsert(bb, trigger, increment_R15_instr);
+    instr_t *store_queue_reg_instr = XINST_CREATE_store(
+        drcontext,
+        OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->enqueue_pointer), OPSZ_8),
+        opnd_create_reg(QUEUE_PTR_REG)
+    );
+
+    instrlist_meta_postinsert(bb, trigger, store_queue_reg_instr);
+    instrlist_meta_postinsert(bb, trigger, increment_queue_reg_instr);
     instrlist_postinsert(bb, trigger, enqueue_instr);
+    instrlist_meta_postinsert(bb, trigger, load_enqueue_ptr_instr);
 
 
     /*
@@ -201,10 +207,16 @@ void handler_4(JANUS_CONTEXT) {
     reg_id_t reg64 = get_64_equivalent_reg(reg);
     std::cout << " Register that should be compared against dequeue is " << get_register_name(reg64) << std::endl;
 
+    instr_t *load_dequeue_ptr_instr = XINST_CREATE_load_int(
+        drcontext,
+        opnd_create_reg(QUEUE_PTR_REG),
+        OPND_CREATE_INTPTR(IPC_QUEUE_2->dequeue_pointer)
+    );
+
     instr_t *cmp_instr = XINST_CREATE_cmp(
         drcontext,
         opnd_create_reg(reg),
-        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0)
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(QUEUE_PTR_REG, 0)
     );
 
     instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
@@ -215,16 +227,23 @@ void handler_4(JANUS_CONTEXT) {
         opnd_create_pc((app_pc)unexpected_dequeue)
     );
 
-    // IPC_QUEUE_2->dequeue_ptr++;
-    instr_t *increment_R15_instr = XINST_CREATE_add(
+    instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(QUEUE_PTR_REG),
         OPND_CREATE_INT32(8)
     );
 
-    instrlist_meta_postinsert(bb, trigger, increment_R15_instr);
+    instr_t *store_queue_reg_instr = XINST_CREATE_store(
+        drcontext,
+        OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->dequeue_pointer), OPSZ_8),
+        opnd_create_reg(QUEUE_PTR_REG)
+    );
+
+    instrlist_meta_postinsert(bb, trigger, store_queue_reg_instr);
+    instrlist_meta_postinsert(bb, trigger, increment_queue_reg_instr);
     instrlist_meta_postinsert(bb, trigger, jmp_instr);
     instrlist_postinsert(bb, trigger, cmp_instr);
+    instrlist_meta_postinsert(bb, trigger, load_dequeue_ptr_instr);
 }
 
 void wait_for_checker()

@@ -51,6 +51,15 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
             // keeps waiting in the while loop even though the condition is modified by the other thread
             usleep(100);
         }
+
+        // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
+        if (IPC_QUEUE_2->enqueue_pointer == IPC_QUEUE_2->r1) {
+            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z2;
+        }
+        else {
+            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
+        }
+
         std::cout << "Thread " << gettid() << " finished spinlocking and entering Z2" << std::endl;
         ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z2;
     }
@@ -59,6 +68,15 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
         while (!IPC_QUEUE_2->is_z1_free) {
             usleep(100);
         }
+
+        // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
+        if (IPC_QUEUE_2->enqueue_pointer == IPC_QUEUE_2->r2) {
+            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
+        }
+        else {
+            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
+        }
+
         std::cout << "Thread " << gettid() << " finished spinlocking and entering Z1" << std::endl;
         ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
     }
