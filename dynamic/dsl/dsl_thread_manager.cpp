@@ -34,6 +34,8 @@ void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
 
+AppThread::AppThread(pid_t pid_): pid(pid_) {}
+
 ThreadRole get_thread_role_from_str(const char *thread_role_as_str);
 
 void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)

@@ -28,6 +28,9 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT);
 
 dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo);
 
+// Helper function - TODO: move to another file
+void print_first_n_elements_from_queue(int n);
+
 
 /* Handler table */
 void **htable = NULL;
@@ -199,6 +202,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     std::cout << "Processing basic block at " << (void*) bbAddr << " for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
+    print_first_n_elements_from_queue(5);
+
     // Next 5 lines just print the original basic block instructions (before the rules are applied)
     string filename = get_basic_block_filename(drcontext, 1);
     app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
@@ -277,4 +282,15 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     }
 
     return DR_SIGNAL_DELIVER;
+}
+
+
+void print_first_n_elements_from_queue(int n)
+{
+    std::cout << "First " << n << " elements of the queue are: " << std::endl;
+    int64_t *ptr = IPC_QUEUE_2->z1;
+    for (int i = 0; i < 5; ++i) {
+        std::cout << i << ": " << *ptr << std::endl;
+        ++ptr;
+    }
 }

@@ -9,6 +9,8 @@
 
 class AppThread;
 
+const int NUM_THREAD_SPILL_SLOTS = 10;
+
 
 /*--- Thread Manager Declarations Start ---*/
 
@@ -58,7 +60,10 @@ class AppThread {
     */
     std::map <int64_t, std::set<long> > bb_to_required_rules;
 
-    AppThread(pid_t pid_): pid(pid_) {}
+    const int num_spill_slots;
+    int64_t spill_slots[NUM_THREAD_SPILL_SLOTS];
+
+    AppThread(pid_t pid_);
 };
 
 extern std::map <pid_t, AppThread*> app_threads;

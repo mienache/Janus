@@ -14,6 +14,17 @@
 
 const reg_id_t QUEUE_PTR_REG = DR_REG_R13;
 
+// Sometimes the QUEUE_PTR_REG coincides with the register that has to be stored in memory
+// The easiest option for now is to use an alternative register when that happens.
+const reg_id_t QUEUE_PTR_REG_ALTERNATIVE = DR_REG_R12;
+
+// Index of the AppThread's spill slot where the register that will hold the queue pointer
+// will be spilled before loading the queue pointer
+const unsigned QUEUE_PTR_SPILL_SLOT_INDEX = 0;
+
+instr_t* create_spill_queue_ptr_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
+instr_t* create_restore_queue_ptr_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
+
 void print_func_entry_msg(void *drcontext, string func_name)
 {
     string thread_role;
@@ -35,6 +46,7 @@ void handler_1(JANUS_CONTEXT){
     // Uncomment below to monitor when this handler is invoked
     // print_func_entry_msg(drcontext, "handler_1");
 
+    return;
     instr_t * trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
     dr_save_reg(drcontext,bb,trigger,DR_REG_RAX,SPILL_SLOT_1);
@@ -117,6 +129,7 @@ void handler_3(JANUS_CONTEXT) {
     std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through handler 3" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
+    uint64_t bitmask = rule->reg1;
 
     if (!instr_num_dsts(trigger)) {
         std::cout << "No dest registers, skipping" << std::endl;
@@ -134,37 +147,58 @@ void handler_3(JANUS_CONTEXT) {
     //add_instrumentation_code_for_queue_communication(janus_context, enqueue, IPC_QUEUE, dest);
     reg_id_t reg = opnd_get_reg(dest);
     std::cout << " Original register is " << get_register_name(reg) << std::endl;
-    reg_id_t reg64 = get_64_equivalent_reg(reg);
+
+    const reg_id_t queue_ptr_reg = reg_overlap(reg, QUEUE_PTR_REG) ? QUEUE_PTR_REG_ALTERNATIVE : QUEUE_PTR_REG;
 
     instr_t *load_enqueue_ptr_instr = XINST_CREATE_load_int(
         drcontext,
-        opnd_create_reg(QUEUE_PTR_REG),
+        opnd_create_reg(queue_ptr_reg),
         OPND_CREATE_INTPTR(IPC_QUEUE_2->enqueue_pointer)
     );
 
     instr_t *enqueue_instr = XINST_CREATE_store(
         drcontext,
-        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(DR_REG_R13, 0),
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(queue_ptr_reg, 0) : OPND_CREATE_MEM64(queue_ptr_reg, 0),
         opnd_create_reg(reg)
     );
     instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
 
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
-        opnd_create_reg(QUEUE_PTR_REG),
+        opnd_create_reg(queue_ptr_reg),
         OPND_CREATE_INT32(8)
     );
 
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
         drcontext,
         OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->enqueue_pointer), OPSZ_8),
-        opnd_create_reg(QUEUE_PTR_REG)
+        opnd_create_reg(queue_ptr_reg)
     );
 
     instrlist_meta_postinsert(bb, trigger, store_queue_reg_instr);
     instrlist_meta_postinsert(bb, trigger, increment_queue_reg_instr);
     instrlist_postinsert(bb, trigger, enqueue_instr);
     instrlist_meta_postinsert(bb, trigger, load_enqueue_ptr_instr);
+
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        std::cout << "Spilling queue ptr reg" << std::endl;
+        // If the register is live, must spill and reload before and after the queue operations
+        const pid_t tid = dr_get_thread_id(drcontext);
+
+        AppThread *curr_thread = app_threads[tid];
+        int64_t *spill_slot = &(curr_thread->spill_slots[QUEUE_PTR_SPILL_SLOT_INDEX]);
+        instr_t *spill_queue_reg_instr = create_spill_queue_ptr_instr(drcontext, queue_ptr_reg, spill_slot);
+        instr_t *restore_queue_reg_instr = create_restore_queue_ptr_instr(drcontext, queue_ptr_reg, spill_slot) ;
+
+        // Insert the spill before the load ptr instr
+        instrlist_meta_preinsert(bb, load_enqueue_ptr_instr, spill_queue_reg_instr);
+
+        // Insert the restore after the queue register pointer is stored
+        instrlist_meta_postinsert(bb, store_queue_reg_instr, restore_queue_reg_instr);
+
+        std::cout << "Finished inserting instructions for spilling and restoring" << std::endl;
+    }
+
 
 
     /*
@@ -189,6 +223,7 @@ void handler_4(JANUS_CONTEXT) {
     std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through handler 4" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
+    uint64_t bitmask = rule->reg1;
 
     if (!instr_num_dsts(trigger)) {
         return;
@@ -204,19 +239,19 @@ void handler_4(JANUS_CONTEXT) {
 
     reg_id_t reg = opnd_get_reg(dest);
     std::cout << " Original register is " << get_register_name(reg) << std::endl;
-    reg_id_t reg64 = get_64_equivalent_reg(reg);
-    std::cout << " Register that should be compared against dequeue is " << get_register_name(reg64) << std::endl;
+
+    const reg_id_t queue_ptr_reg = reg_overlap(reg, QUEUE_PTR_REG) ? QUEUE_PTR_REG_ALTERNATIVE : QUEUE_PTR_REG;
 
     instr_t *load_dequeue_ptr_instr = XINST_CREATE_load_int(
         drcontext,
-        opnd_create_reg(QUEUE_PTR_REG),
+        opnd_create_reg(queue_ptr_reg),
         OPND_CREATE_INTPTR(IPC_QUEUE_2->dequeue_pointer)
     );
 
     instr_t *cmp_instr = XINST_CREATE_cmp(
         drcontext,
         opnd_create_reg(reg),
-        reg_is_32bit(reg) ? OPND_CREATE_MEM32(QUEUE_PTR_REG, 0) : OPND_CREATE_MEM64(QUEUE_PTR_REG, 0)
+        reg_is_32bit(reg) ? OPND_CREATE_MEM32(queue_ptr_reg, 0) : OPND_CREATE_MEM64(queue_ptr_reg, 0)
     );
 
     instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
@@ -229,14 +264,14 @@ void handler_4(JANUS_CONTEXT) {
 
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
-        opnd_create_reg(QUEUE_PTR_REG),
+        opnd_create_reg(queue_ptr_reg),
         OPND_CREATE_INT32(8)
     );
 
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
         drcontext,
         OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->dequeue_pointer), OPSZ_8),
-        opnd_create_reg(QUEUE_PTR_REG)
+        opnd_create_reg(queue_ptr_reg)
     );
 
     instrlist_meta_postinsert(bb, trigger, store_queue_reg_instr);
@@ -244,6 +279,25 @@ void handler_4(JANUS_CONTEXT) {
     instrlist_meta_postinsert(bb, trigger, jmp_instr);
     instrlist_postinsert(bb, trigger, cmp_instr);
     instrlist_meta_postinsert(bb, trigger, load_dequeue_ptr_instr);
+
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        std::cout << "Spilling queue ptr reg" << std::endl;
+        // If the register is live, must spill and reload before and after the queue operations
+        const pid_t tid = dr_get_thread_id(drcontext);
+
+        AppThread *curr_thread = app_threads[tid];
+        int64_t *spill_slot = &(curr_thread->spill_slots[QUEUE_PTR_SPILL_SLOT_INDEX]);
+        instr_t *spill_queue_reg_instr = create_spill_queue_ptr_instr(drcontext, queue_ptr_reg, spill_slot);
+        instr_t *restore_queue_reg_instr = create_restore_queue_ptr_instr(drcontext, queue_ptr_reg, spill_slot);
+
+        // Insert the spill before the load ptr instr
+        instrlist_meta_preinsert(bb, load_dequeue_ptr_instr, spill_queue_reg_instr);
+
+        // Insert the restore after the queue register pointer is stored
+        instrlist_meta_postinsert(bb, store_queue_reg_instr, restore_queue_reg_instr);
+
+        std::cout << "Finished inserting instructions for spilling and restoring" << std::endl;
+    }
 }
 
 void wait_for_checker()
@@ -297,3 +351,21 @@ void create_handler_table(){
 }
 
 /*--- Dynamic Handlers Finish ---*/
+
+instr_t* create_spill_queue_ptr_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot)
+{
+    return XINST_CREATE_store(
+        drcontext,
+        OPND_CREATE_ABSMEM((byte*) spill_slot, OPSZ_8),
+        opnd_create_reg(queue_ptr_reg)
+    );
+
+}
+instr_t* create_restore_queue_ptr_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot)
+{
+    return XINST_CREATE_load(
+        drcontext,
+        opnd_create_reg(queue_ptr_reg),
+        OPND_CREATE_ABSMEM((byte*) spill_slot, OPSZ_8)
+    );
+}
