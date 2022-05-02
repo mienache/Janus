@@ -1,6 +1,7 @@
 #ifndef __DSL_IPC__
 #define __DSL_IPC__
 
+#include <atomic>
 #include <iostream>
 #include <map>
 
@@ -39,8 +40,10 @@ struct CometQueue {
     void *r2;
     void *enqueue_pointer;
     void *dequeue_pointer;
-    bool is_z1_free;
-    bool is_z2_free;
+    std::atomic<bool> is_z1_free;
+    std::atomic<bool> is_z2_free;
+    std::atomic<pid_t> z1_last_thread;
+    std::atomic<pid_t> z2_last_thread;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -93,7 +96,10 @@ struct CometQueue {
         dequeue_pointer = r2;
 
         is_z1_free = 0;
-        is_z2_free = 1;
+        is_z2_free = 0;
+
+        std::cout << "Enqueue pointer allocated at: " << (void*) &enqueue_pointer << std::endl;
+        std::cout << "Dequeue pointer allocated at: " << (void*) &dequeue_pointer << std::endl;
 
         // TODO: complete signal_handler
     }

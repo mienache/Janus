@@ -15,7 +15,7 @@
 
 /*--- IPC Declarations Finish ---*/
 
-const int DEFAULT_QUEUE_SIZE = 500;
+const int DEFAULT_QUEUE_SIZE = 50000;
 
 BasicQueue *IPC_QUEUE;
 CometQueue *IPC_QUEUE_2;

@@ -45,6 +45,7 @@ for (auto &F: jc.functions){
         insertCustomRule<Function>(2,F,4, true, 0, bitmask);
 
 
+        // F.endAddress = 0x40182b;
         std::cout << "Inserting thread wait rule at " << std::hex << F.endAddress<< std::endl;
         insertCustomRule<Function>(5,F,5, true, 0, bitmask);
 

@@ -12,11 +12,11 @@
 #include "janus_api.h"
 #include "handler.h"
 
-const reg_id_t QUEUE_PTR_REG = DR_REG_R13;
+const reg_id_t QUEUE_PTR_REG = DR_REG_R11;
 
 // Sometimes the QUEUE_PTR_REG coincides with the register that has to be stored in memory
 // The easiest option for now is to use an alternative register when that happens.
-const reg_id_t QUEUE_PTR_REG_ALTERNATIVE = DR_REG_R12;
+const reg_id_t QUEUE_PTR_REG_ALTERNATIVE = DR_REG_R10;
 
 // Index of the AppThread's spill slot where the register that will hold the queue pointer
 // will be spilled before loading the queue pointer
@@ -60,6 +60,9 @@ void handler_2(JANUS_CONTEXT){
     std::cout << "Instrumenting through handler 2" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
+    if (!trigger) {
+        return;
+    }
 
 
     // TODO: the above logic will probably need to be moved in a different location but this will do for now
@@ -131,6 +134,10 @@ void handler_3(JANUS_CONTEXT) {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
 
+    if (!trigger) {
+        return;
+    }
+
     if (!instr_num_dsts(trigger)) {
         std::cout << "No dest registers, skipping" << std::endl;
         return;
@@ -150,10 +157,10 @@ void handler_3(JANUS_CONTEXT) {
 
     const reg_id_t queue_ptr_reg = reg_overlap(reg, QUEUE_PTR_REG) ? QUEUE_PTR_REG_ALTERNATIVE : QUEUE_PTR_REG;
 
-    instr_t *load_enqueue_ptr_instr = XINST_CREATE_load_int(
+    instr_t *load_enqueue_ptr_instr = XINST_CREATE_load(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INTPTR(IPC_QUEUE_2->enqueue_pointer)
+        OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->enqueue_pointer), OPSZ_8)
     );
 
     instr_t *enqueue_instr = XINST_CREATE_store(
@@ -180,7 +187,7 @@ void handler_3(JANUS_CONTEXT) {
     instrlist_postinsert(bb, trigger, enqueue_instr);
     instrlist_meta_postinsert(bb, trigger, load_enqueue_ptr_instr);
 
-    if (inRegSet(bitmask, queue_ptr_reg)) {
+    if (0 && inRegSet(bitmask, queue_ptr_reg)) {
         std::cout << "Spilling queue ptr reg" << std::endl;
         // If the register is live, must spill and reload before and after the queue operations
         const pid_t tid = dr_get_thread_id(drcontext);
@@ -225,6 +232,10 @@ void handler_4(JANUS_CONTEXT) {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
 
+    if (!trigger) {
+        return;
+    }
+
     if (!instr_num_dsts(trigger)) {
         return;
     }
@@ -242,10 +253,10 @@ void handler_4(JANUS_CONTEXT) {
 
     const reg_id_t queue_ptr_reg = reg_overlap(reg, QUEUE_PTR_REG) ? QUEUE_PTR_REG_ALTERNATIVE : QUEUE_PTR_REG;
 
-    instr_t *load_dequeue_ptr_instr = XINST_CREATE_load_int(
+    instr_t *load_dequeue_ptr_instr = XINST_CREATE_load(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INTPTR(IPC_QUEUE_2->dequeue_pointer)
+        OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->dequeue_pointer), OPSZ_8)
     );
 
     instr_t *cmp_instr = XINST_CREATE_cmp(
@@ -280,7 +291,7 @@ void handler_4(JANUS_CONTEXT) {
     instrlist_postinsert(bb, trigger, cmp_instr);
     instrlist_meta_postinsert(bb, trigger, load_dequeue_ptr_instr);
 
-    if (inRegSet(bitmask, queue_ptr_reg)) {
+    if (0 && inRegSet(bitmask, queue_ptr_reg)) {
         std::cout << "Spilling queue ptr reg" << std::endl;
         // If the register is live, must spill and reload before and after the queue operations
         const pid_t tid = dr_get_thread_id(drcontext);

@@ -378,6 +378,12 @@ base_tree* insert_base(base_tree* node, PCAddress base){
 
 void copy_rules_to_new_bb(void *dest_bb_start, void *source_bb_start)
 {
+    if (hashtable_lookup(&rule_table[KEYBASE], dest_bb_start - KEYBASE) != NULL) {
+        // If the basic block already has rules, don't overwrite
+        // TODO: will need to extract this in a separate function
+        // return;
+    }
+
     hashtable_add(
         &rule_table[KEYBASE],
         dest_bb_start - KEYBASE,

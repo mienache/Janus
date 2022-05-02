@@ -92,6 +92,8 @@ void new_janus_thread(void *drcontext) {
         // Otherwise register as checker thread
         std::cout << "Registering CHECKER thread" << std::endl;
         checker_thread = register_thread("worker", drcontext);
+        std::cout << "CHECKER THREAD SLEEPING 5 sec." << std::endl;
+        sleep(1);
     }
 
 /*--- Janus Thread Init Finish ---*/
@@ -142,10 +144,9 @@ string get_basic_block_filename(void *drcontext, bool is_original_bb)
         }
     }
 
-    if (!is_original_bb) {
-        // Generate different names for the original and the instrumented basic blocks
-        filename += is_original_bb ? ".txt" : "_modified.txt";
-    }
+    filename += is_original_bb ? ".txt" : "_modified.txt";
+
+    std::cout << "file: " << filename << std::endl;
 
     return filename;
 }
@@ -274,11 +275,27 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
         return DR_SIGNAL_DELIVER;
     }
 
-    if (siginfo->access_address == IPC_QUEUE_2->r1 || siginfo->access_address == IPC_QUEUE_2->r2) {
-        const int tid = dr_get_thread_id(drcontext);
-        AppThread *curr_thread = app_threads[tid];
-        const uint64_t pc = siginfo->mcontext->pc;
+    if (siginfo->access_address != IPC_QUEUE_2->r1 && siginfo->access_address != IPC_QUEUE_2->r2) {
+        return DR_SIGNAL_DELIVER;
+    }
+
+    const pid_t tid = dr_get_thread_id(drcontext);
+    AppThread *curr_thread = app_threads[tid];
+    const uint64_t pc = siginfo->mcontext->pc;
+
+    if (pc != curr_thread->curr_bb) {
         curr_thread->bb_to_required_rules[pc].insert(curr_thread->curr_bb);
+    }
+
+    if (siginfo->access_address == IPC_QUEUE_2->r1) {
+        std::cout << "Thread " << tid << " blocked in R1; starts spinlocking..." << std::endl;
+        std::cout << "Is z2 free: " << IPC_QUEUE_2->is_z2_free << std::endl;
+        std::cout << "Z2 last thread: " << IPC_QUEUE_2->z2_last_thread << std::endl;
+    }
+    else {
+        std::cout << "Thread " << tid << " blocked in R2; starts spinlocking..." << std::endl;
+        std::cout << "Is z1 free: " << IPC_QUEUE_2->is_z1_free << std::endl;
+        std::cout << "Z1 last thread: " << IPC_QUEUE_2->z1_last_thread << std::endl;
     }
 
     return DR_SIGNAL_DELIVER;

@@ -43,46 +43,54 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
     std::cout << "Sig number = " << sig << std::endl;
     std::cout << "Caught segfault at address " << info->si_addr << std::endl;
     std::cout << "PC = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RIP] << std::endl;
-    std::cout << "R13 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
+    std::cout << "R13 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R11] << std::endl;
+
+    const pid_t curr_tid = gettid();
 
     if (info->si_addr == IPC_QUEUE_2->r1) {
-        std::cout << "Thread " << gettid() << " blocked in R1; start spinlocking..." << std::endl;
-        while (!IPC_QUEUE_2->is_z2_free) {
+        IPC_QUEUE_2->is_z1_free = 1;
+
+        while (!IPC_QUEUE_2->is_z2_free || IPC_QUEUE_2->z2_last_thread == curr_tid) {
             // TODO: investigate if usleep is needed indeed.
             // This was added because on some runs the execution does not finish and the thread
             // keeps waiting in the while loop even though the condition is modified by the other thread
             usleep(100);
         }
 
+        IPC_QUEUE_2->is_z2_free = 0;
+        IPC_QUEUE_2->z2_last_thread = curr_tid;
+
         // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
-        if (IPC_QUEUE_2->enqueue_pointer == IPC_QUEUE_2->r1) {
+        if (app_threads[curr_tid]->threadRole == ThreadRole::MAIN) {
             IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z2;
         }
         else {
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
         }
 
-        std::cout << "Thread " << gettid() << " finished spinlocking and entering Z2" << std::endl;
-        ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z2;
+        std::cout << "Thread " << curr_tid << " finished spinlocking and entering Z2" << std::endl;
     }
-    else if (info->si_addr == IPC_QUEUE_2->r2) {
-        std::cout << "Thread " << gettid() << " blocked in R2; start spinlocking..." << std::endl;
-        while (!IPC_QUEUE_2->is_z1_free) {
+    else if (info->si_addr == IPC_QUEUE_2->r2 || IPC_QUEUE_2->z1_last_thread == curr_tid) {
+        IPC_QUEUE_2->is_z2_free = 1;
+
+        while (!IPC_QUEUE_2->is_z1_free || IPC_QUEUE_2->z1_last_thread == curr_tid) {
             usleep(100);
         }
 
+        IPC_QUEUE_2->is_z1_free = 0;
+        IPC_QUEUE_2->z1_last_thread = curr_tid;
+
         // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
-        if (IPC_QUEUE_2->enqueue_pointer == IPC_QUEUE_2->r2) {
+        if (app_threads[curr_tid]->threadRole == ThreadRole::MAIN) {
             IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
         }
         else {
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
         }
 
-        std::cout << "Thread " << gettid() << " finished spinlocking and entering Z1" << std::endl;
-        ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] = (greg_t) IPC_QUEUE_2->z1;
+        std::cout << "Thread " << curr_tid << " finished spinlocking and entering Z1" << std::endl;
     }
-    std::cout << "R13 after changing = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
+    //std::cout << "R13 after changing = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R11] << std::endl;
 }
 
 struct sigaction sa;
