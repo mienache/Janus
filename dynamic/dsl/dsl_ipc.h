@@ -93,7 +93,7 @@ struct CometQueue {
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
 
         enqueue_pointer = z1;
-        dequeue_pointer = r2;
+        dequeue_pointer = z1;
 
         is_z1_free = 0;
         is_z2_free = 0;

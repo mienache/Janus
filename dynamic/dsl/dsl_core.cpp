@@ -6,6 +6,7 @@
 #include <ucontext.h>
 
 #include <iostream>
+#include <vector>
 
 #include "dsl_core.h"
 #include "dsl_handler.h"
@@ -13,6 +14,8 @@
 #include "dsl_thread_manager.h"
 #include "func.h"
 #include "handler.h"
+
+extern std::vector <instr_t*> instructions_to_remove;
 
 static dr_emit_flags_t
 event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating);
@@ -31,6 +34,8 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo);
 // Helper function - TODO: move to another file
 void print_first_n_elements_from_queue(int n);
 
+void restore_state_handler(void *drcontext, void *tag, dr_mcontext_t *mcontext, bool restore_memory, bool app_code_consistent);
+
 
 /* Handler table */
 void **htable = NULL;
@@ -48,6 +53,7 @@ dr_init(client_id_t id)
     dr_register_thread_init_event(new_janus_thread);
     dr_register_thread_exit_event(exit_janus_thread);
     dr_register_signal_event(signal_handler);
+    // dr_register_restore_state_event(restore_state_handler);
 
     /* Initialise Janus components and file Janus global info */
     janus_init(id);
@@ -92,8 +98,8 @@ void new_janus_thread(void *drcontext) {
         // Otherwise register as checker thread
         std::cout << "Registering CHECKER thread" << std::endl;
         checker_thread = register_thread("worker", drcontext);
-        std::cout << "CHECKER THREAD SLEEPING 5 sec." << std::endl;
-        sleep(1);
+        std::cout << "CHECKER THREAD SLEEPING 2 sec." << std::endl;
+        sleep(2);
     }
 
 /*--- Janus Thread Init Finish ---*/
@@ -103,11 +109,15 @@ void new_janus_thread(void *drcontext) {
 void exit_janus_thread(void *drcontext) {
     std::cout << "Thread leaving: TID = " << dr_get_thread_id(drcontext) << std::endl;
 
+    IPC_QUEUE_2->is_z1_free = 1;
+    IPC_QUEUE_2->is_z2_free = 1;
+
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         std::cout << "MAIN thread leaving." << std::endl;
     }
     else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "CHECKER thread leaving." << std::endl;
+        CHECKER_THREAD_FINISHED = 1;
     }
     else {
         std::cout << "UNKNOWN thread leaving." << std::endl;
@@ -203,7 +213,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     std::cout << "Processing basic block at " << (void*) bbAddr << " for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
-    print_first_n_elements_from_queue(5);
+    // print_first_n_elements_from_queue(15);
 
     // Next 5 lines just print the original basic block instructions (before the rules are applied)
     string filename = get_basic_block_filename(drcontext, 1);
@@ -213,6 +223,7 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     dr_close_file(output_file);
 
 
+    instructions_to_remove.clear();
     do {
         // The while below is needed because a linked list of rules might belong to different
         // basic blocks if an original basic block was split. This is because the PC of some
@@ -237,6 +248,10 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         //This basic block may be annotated with more rules
         rule = rule->next;
     }while(rule);
+
+    for (auto i: instructions_to_remove) {
+        instrlist_remove(bb, i);
+    }
 
     // Next 5 lines just print the modified basic block instructions (after the rules are applied)
     filename = get_basic_block_filename(drcontext, 0);
@@ -268,7 +283,9 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
 {
     // TODO: this will need to make one thread sleep while the other one completes its part of the queue
     // TODO: check this the signal is SIGSEGV otherwise deliver it
-    
+
+    //std::cout << "Error at " << siginfo->access_address << std::endl;
+    //return DR_SIGNAL_DELIVER;
 
     if (siginfo->sig != SIGSEGV) {
         std::cout << "NON SIGSEGV signal found" << std::endl;
@@ -306,8 +323,13 @@ void print_first_n_elements_from_queue(int n)
 {
     std::cout << "First " << n << " elements of the queue are: " << std::endl;
     int64_t *ptr = IPC_QUEUE_2->z1;
-    for (int i = 0; i < 5; ++i) {
-        std::cout << i << ": " << *ptr << std::endl;
+    for (int i = 0; i < n; ++i) {
+        std::cout << i << ": " << (void*) *ptr << std::endl;
         ++ptr;
     }
+}
+
+void restore_state_handler(void *drcontext, void *tag, dr_mcontext_t *mcontext, bool restore_memory, bool app_code_consistent)
+{
+    // std::cout << "Should restore memory: " << restore_memory << std::endl;
 }

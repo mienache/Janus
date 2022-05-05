@@ -381,12 +381,25 @@ void copy_rules_to_new_bb(void *dest_bb_start, void *source_bb_start)
     if (hashtable_lookup(&rule_table[KEYBASE], dest_bb_start - KEYBASE) != NULL) {
         // If the basic block already has rules, don't overwrite
         // TODO: will need to extract this in a separate function
-        // return;
+        std::cout << "Dest bb has rules already!";
+        return;
     }
+
+    if (hashtable_lookup(&rule_table[KEYBASE], source_bb_start - KEYBASE) == NULL) {
+        // If the source block doesn't have any rules, return (this shouldn't be the case)
+        std::cout << "Tricky case encountered!";
+        // TODO: will need to extract this in a separate function
+        return;
+    }
+
 
     hashtable_add(
         &rule_table[KEYBASE],
         dest_bb_start - KEYBASE,
         hashtable_lookup(&rule_table[KEYBASE], source_bb_start - KEYBASE)
     );
+
+    std::cout << "Inserted at " << (void*) hashtable_lookup(&rule_table[KEYBASE], dest_bb_start - KEYBASE) << std::endl;
+
+    std::cout << "Successfully forwarded rules" << std::endl;
 }
