@@ -107,13 +107,24 @@ void thread_creation_handler(JANUS_CONTEXT){
 
 
     // Just printing the modified basic block to identify the file easier
+    /*
     app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
     file_t output_file = dr_open_file("instructions.txt", DR_FILE_WRITE_OVERWRITE);
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
+    */
 }
 
 int get_queue_index(void* ptr);
+
+void enqueue_debug(int64_t enqueued_value)
+{
+    std::cout << "In enqueue_debug" << std::endl;
+
+    const int index = get_queue_index(IPC_QUEUE_2->enqueue_pointer);
+    std::cout << "Enqueing to index: " << index << std::endl;
+    std::cout << "Enqueued value = " << enqueued_value << std::endl;
+}
 
 void main_handler(JANUS_CONTEXT) {
     if (!(main_thread && dr_get_thread_id(drcontext) == main_thread->pid)) {
@@ -123,7 +134,7 @@ void main_handler(JANUS_CONTEXT) {
     if (!PAST_THREAD_CREATION_STAGE) {
         return;
     }
-    std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through main load /move handler" << std::endl;
+    // std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through main load /move handler" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
@@ -132,7 +143,7 @@ void main_handler(JANUS_CONTEXT) {
         return;
     }
 
-    std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
+    //std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
 
     if (!instr_num_dsts(trigger)) {
         main_cmp_instr_handler(drcontext, bb, trigger);
@@ -176,11 +187,34 @@ void main_handler(JANUS_CONTEXT) {
     instrlist_postinsert(bb, trigger, increment_queue_reg_instr);
     instrlist_postinsert(bb, trigger, enqueue_instr);
     instrlist_postinsert(bb, trigger, load_enqueue_ptr_instr);
+
+    // dr_insert_clean_call(drcontext, bb, enqueue_instr, enqueue_debug, 0, 1, dest);
 }
 
 void unexpected_dequeue()
 {
     std::cout << "ERROR: dequeue returned unexpected value" << std::endl;
+}
+
+void dequeue_debug(int64_t expected_value, int asserting)
+{
+    std::cout << "In dequeue_debug" << std::endl;
+
+    if (IPC_QUEUE_2->dequeue_pointer == IPC_QUEUE_2->r2) {
+        std::cout << "R zone" << std::endl;
+        return;
+    }
+
+    const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
+    std::cout << "Dequeing from index: " << index << std::endl;
+    std::cout << "Current value: " << *((int64_t*) (IPC_QUEUE_2->dequeue_pointer)) << std::endl;
+
+    if (asserting) {
+        std::cout << "Expected value: " << expected_value << std::endl;
+    }
+    else {
+        std::cout << "Not asserting" << std::endl;
+    }
 }
 
 void checker_handler(JANUS_CONTEXT) {
@@ -189,7 +223,7 @@ void checker_handler(JANUS_CONTEXT) {
     }
 
 
-    std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through checker load handler" << std::endl;
+    // std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through checker load handler" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
@@ -200,7 +234,7 @@ void checker_handler(JANUS_CONTEXT) {
 
     // ignore RSP and RBP
 
-    std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
+    //std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
 
     if (!instr_num_dsts(trigger)) {
         checker_cmp_instr_handler(drcontext, bb, trigger);
@@ -210,9 +244,11 @@ void checker_handler(JANUS_CONTEXT) {
     opnd_t dest = instr_get_dst(trigger, 0);
 
     if (!opnd_is_reg(dest)) {
-        std::cout << "del: Writing to memory, will remove it:" << std::endl;
+        // std::cout << "del: Writing to memory, will remove it:" << std::endl;
+        /*
         instr_disassemble(drcontext, trigger, STDOUT);
         std::cout << endl;
+        */
         instructions_to_remove.push_back(trigger);
         return;
     }
@@ -230,7 +266,7 @@ void checker_handler(JANUS_CONTEXT) {
 
     reg_id_t reg = opnd_get_reg(dest);
 
-    std::cout << "Dest register is " << get_register_name(reg) << std::endl;
+    // std::cout << "Dest register is " << get_register_name(reg) << std::endl;
 
     if (reg == DR_REG_RBP || reg == DR_REG_RSP) {
         return;
@@ -260,9 +296,9 @@ void checker_handler(JANUS_CONTEXT) {
 
     if (!src_all_reg) {
         // dequeue and load to reg, remove instruction
-        std::cout << "del: Memory operands in instruction, will remove it:" << std::endl;
-        instr_disassemble(drcontext, trigger, STDOUT);
-        std::cout << endl;
+        // std::cout << "del: Memory operands in instruction, will remove it:" << std::endl;
+        // instr_disassemble(drcontext, trigger, STDOUT);
+        // std::cout << endl;
 
         dequeue_instr = XINST_CREATE_load(drcontext, dest, dequeue_location);
 
@@ -276,12 +312,14 @@ void checker_handler(JANUS_CONTEXT) {
         instrlist_postinsert(bb, trigger, dequeue_instr);
         instrlist_postinsert(bb, trigger, load_dequeue_ptr_instr);
 
+        // dr_insert_clean_call(drcontext, bb, dequeue_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(0));
+
         // instrlist_remove(bb, trigger);
         instructions_to_remove.push_back(trigger);
     }
     else {
         // cmp against queue, keep instruction
-        std::cout << "Keep instruction" << std::endl;
+        // std::cout << "Keep instruction" << std::endl;
         instr_t *cmp_instr = XINST_CREATE_cmp(drcontext, dest, dequeue_location);
         instr_t *jmp_instr = INSTR_CREATE_jcc(drcontext, OP_jne, opnd_create_pc((app_pc)unexpected_dequeue));
         instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
@@ -292,6 +330,8 @@ void checker_handler(JANUS_CONTEXT) {
         instrlist_postinsert(bb, trigger, increment_queue_reg_instr);
         instrlist_postinsert(bb, trigger, cmp_instr);
         instrlist_postinsert(bb, trigger, load_dequeue_ptr_instr);
+
+        // dr_insert_clean_call(drcontext, bb, cmp_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(1));
     }
 }
 
@@ -507,12 +547,14 @@ void checker_cmp_instr_handler(void *drcontext, instrlist_t *bb, instr_t *trigge
         new_cmp = XINST_CREATE_cmp(drcontext, opnd_create_reg(tmp_reg), dequeue_location2);
     }
 
+    /*
     std::cout << "Old: " << std::endl;
     instr_disassemble(drcontext, trigger, STDOUT);
     std::cout << endl;
     std::cout << "New: " << std::endl;
     instr_disassemble(drcontext, new_cmp, STDOUT);
     std::cout << endl;
+    */
 
     instr_t *prev_trigger = instr_get_prev_app(trigger);
 

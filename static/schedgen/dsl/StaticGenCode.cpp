@@ -38,6 +38,13 @@ for (auto &func: jc.functions){
             insertCustomRule<Instruction>(3,I,1, true, 0, bitmask);
             insertCustomRule<Instruction>(4,I,1, true, 0, bitmask);
         }
+        /*
+        else if (get_opcode(I) == Instruction::GetPointer) {
+            bitmask = func.liveRegIn[I.id].bits;
+            insertCustomRule<Instruction>(3,I,1, true, 0, bitmask);
+            insertCustomRule<Instruction>(4,I,1, true, 0, bitmask);
+        }
+        */
     }
 }
 for (auto &F: jc.functions){

@@ -93,12 +93,14 @@ void new_janus_thread(void *drcontext) {
         // If it is the first thread, register it as the main thread
         std::cout << "Registering MAIN thread" << std::endl;
         main_thread = register_thread("main", drcontext);
+        IPC_QUEUE_2->z1_last_thread = main_thread->pid;
+        IPC_QUEUE_2->last_thread_changed = main_thread->pid;
     }
     else {
         // Otherwise register as checker thread
         std::cout << "Registering CHECKER thread" << std::endl;
         checker_thread = register_thread("worker", drcontext);
-        std::cout << "CHECKER THREAD SLEEPING 2 sec." << std::endl;
+        // std::cout << "CHECKER THREAD SLEEPING 2 sec." << std::endl;
         sleep(2);
     }
 
@@ -213,14 +215,14 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     std::cout << "Processing basic block at " << (void*) bbAddr << " for TID = " << dr_get_thread_id(drcontext) << std::endl;
 
-    // print_first_n_elements_from_queue(15);
-
     // Next 5 lines just print the original basic block instructions (before the rules are applied)
+    /*
     string filename = get_basic_block_filename(drcontext, 1);
     app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
     file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
+    */
 
 
     instructions_to_remove.clear();
@@ -254,13 +256,19 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     }
 
     // Next 5 lines just print the modified basic block instructions (after the rules are applied)
+    /*
     filename = get_basic_block_filename(drcontext, 0);
     tag_new = instr_get_app_pc(instrlist_first_app(bb));
     output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-    instrlist_disassemble(drcontext, tag_new, bb, output_file);
+    //instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
+    */
 
     std::cout << "Thread " << dr_get_thread_id(drcontext) << " finished appliying rules - code will be now executed:" << std::endl;
+    std::cout << "Enq ptr = " << IPC_QUEUE_2->enqueue_pointer << std::endl;
+    std::cout << "Deq ptr = " << IPC_QUEUE_2->dequeue_pointer << std::endl;
+    // print_first_n_elements_from_queue(15);
+
 
     return DR_EMIT_DEFAULT;
 }
@@ -284,38 +292,101 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     // TODO: this will need to make one thread sleep while the other one completes its part of the queue
     // TODO: check this the signal is SIGSEGV otherwise deliver it
 
-    //std::cout << "Error at " << siginfo->access_address << std::endl;
-    //return DR_SIGNAL_DELIVER;
+    std::cout << "Error caught" << std::endl;
+    std::cout << "Error at " << (void*) siginfo->access_address << std::endl;
 
     if (siginfo->sig != SIGSEGV) {
         std::cout << "NON SIGSEGV signal found" << std::endl;
         return DR_SIGNAL_DELIVER;
     }
 
-    if (siginfo->access_address != IPC_QUEUE_2->r1 && siginfo->access_address != IPC_QUEUE_2->r2) {
+
+    void *error_address = siginfo->access_address;
+    if (error_address < IPC_QUEUE_2->r1 || error_address > IPC_QUEUE_2->r2 + 8) {
         return DR_SIGNAL_DELIVER;
     }
 
     const pid_t tid = dr_get_thread_id(drcontext);
     AppThread *curr_thread = app_threads[tid];
+
     const uint64_t pc = siginfo->mcontext->pc;
 
     if (pc != curr_thread->curr_bb) {
         curr_thread->bb_to_required_rules[pc].insert(curr_thread->curr_bb);
     }
 
-    if (siginfo->access_address == IPC_QUEUE_2->r1) {
-        std::cout << "Thread " << tid << " blocked in R1; starts spinlocking..." << std::endl;
-        std::cout << "Is z2 free: " << IPC_QUEUE_2->is_z2_free << std::endl;
-        std::cout << "Z2 last thread: " << IPC_QUEUE_2->z2_last_thread << std::endl;
+    std::cout << "PC = " << (void*) siginfo->mcontext->pc << std::endl;
+    std::cout << "Raw PC = " << (void*) siginfo->raw_mcontext->pc << std::endl;
+
+    std::cout << "In TID = " << tid << std::endl;
+    std::cout << "Z1 last thread: " << IPC_QUEUE_2->z1_last_thread << std::endl;
+    std::cout << "Z2 last thread: " << IPC_QUEUE_2->z2_last_thread << std::endl;
+    std::cout << "Z1 free: " << IPC_QUEUE_2->is_z1_free<< std::endl;
+    std::cout << "Z2 free: " << IPC_QUEUE_2->is_z2_free<< std::endl;
+
+    if (error_address <= IPC_QUEUE_2->r1 + 8) {
+        IPC_QUEUE_2->is_z1_free = 1;
+
+        while (!IPC_QUEUE_2->is_z2_free || IPC_QUEUE_2->last_thread_changed == tid) {
+            // TODO: investigate if usleep is needed indeed.
+            // This was added because on some runs the execution does not finish and the thread
+            // keeps waiting in the while loop even though the condition is modified by the other thread
+            usleep(100);
+            return DR_SIGNAL_SUPPRESS;
+        }
+
+        IPC_QUEUE_2->is_z2_free = 0;
+        std::cout << "Marked z2 as non-free" << std::endl;
+
+        IPC_QUEUE_2->z2_last_thread = tid;
+
+        // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
+        if (app_threads[tid]->threadRole == ThreadRole::MAIN) {
+            std::cout << "Setting enqueue pointer to z2" << std::endl;
+            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z2;
+        }
+        else {
+            std::cout << "Setting dequeue pointer to z2" << std::endl;
+            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
+        }
+
+        siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2;
+
+        std::cout << "Thread " << tid << " finished spinlocking and entering Z2" << std::endl;
     }
     else {
-        std::cout << "Thread " << tid << " blocked in R2; starts spinlocking..." << std::endl;
-        std::cout << "Is z1 free: " << IPC_QUEUE_2->is_z1_free << std::endl;
-        std::cout << "Z1 last thread: " << IPC_QUEUE_2->z1_last_thread << std::endl;
+        IPC_QUEUE_2->is_z2_free = 1;
+
+        while (!IPC_QUEUE_2->is_z1_free || IPC_QUEUE_2->last_thread_changed == tid) {
+            usleep(100);
+            return DR_SIGNAL_SUPPRESS;
+        }
+
+        IPC_QUEUE_2->is_z1_free = 0;
+        std::cout << "Marked z1 as non-free" << std::endl;
+
+        IPC_QUEUE_2->z1_last_thread = tid;
+
+        // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
+        if (app_threads[tid]->threadRole == ThreadRole::MAIN) {
+            std::cout << "Setting enqueue pointer to z1" << std::endl;
+            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
+        }
+        else {
+            std::cout << "Setting dequeue pointer to z1" << std::endl;
+            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
+        }
+
+        siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1;
+
+        std::cout << "Thread " << tid << " finished spinlocking and entering Z1" << std::endl;
     }
 
-    return DR_SIGNAL_DELIVER;
+    IPC_QUEUE_2->last_thread_changed = tid;
+
+    std::cout << "IPC_POINTERS: " << IPC_QUEUE_2->enqueue_pointer << " | " << IPC_QUEUE_2->dequeue_pointer << std::endl;
+
+    return DR_SIGNAL_SUPPRESS;
 }
 
 

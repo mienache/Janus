@@ -44,6 +44,7 @@ struct CometQueue {
     std::atomic<bool> is_z2_free;
     std::atomic<pid_t> z1_last_thread;
     std::atomic<pid_t> z2_last_thread;
+    std::atomic<pid_t> last_thread_changed;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -93,15 +94,14 @@ struct CometQueue {
         std::cout<< "Z2 at " << (void*) z2 << std::endl;
 
         enqueue_pointer = z1;
-        dequeue_pointer = z1;
+        dequeue_pointer = r2;
+        // dequeue_pointer = z1;
 
         is_z1_free = 0;
-        is_z2_free = 0;
+        is_z2_free = 1;
 
         std::cout << "Enqueue pointer allocated at: " << (void*) &enqueue_pointer << std::endl;
         std::cout << "Dequeue pointer allocated at: " << (void*) &dequeue_pointer << std::endl;
-
-        // TODO: complete signal_handler
     }
 
 };

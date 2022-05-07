@@ -41,15 +41,16 @@ ThreadRole get_thread_role_from_str(const char *thread_role_as_str);
 void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
 {
     // TODO: recheck all the synchronizations involved in the handler
-    // For now this won't be used
 
     std::cout << "Sig number = " << sig << std::endl;
     std::cout << "Caught segfault at address " << info->si_addr << std::endl;
     std::cout << "PC = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RIP] << std::endl;
+    /*
     std::cout << "RDX= " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RDX] << std::endl;
     std::cout << "RAX= " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_RAX] << std::endl;
     std::cout << "R13 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R13] << std::endl;
     std::cout << "R12 = " << (void*) ((ucontext_t*) ucontext)->uc_mcontext.gregs[REG_R12] << std::endl;
+    */
 
     const pid_t curr_tid = gettid();
  
@@ -121,7 +122,8 @@ void run_thread(void *raw_app_thread) {
 
     // Setting up the signal handler
     // TODO: in the future we might want to separate this from the run_thread method
-    // setup_signal_handler(); -- removing this temporarily
+
+    // setup_signal_handler();
 
     std::cout << "In run_thread (TID = " << gettid() << ")" << std::endl;
     std::cout << "Address of run_thread: " << (void*) run_thread << std::endl;
