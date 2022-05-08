@@ -42,9 +42,8 @@ struct CometQueue {
     void *dequeue_pointer;
     std::atomic<bool> is_z1_free;
     std::atomic<bool> is_z2_free;
-    std::atomic<pid_t> z1_last_thread;
-    std::atomic<pid_t> z2_last_thread;
     std::atomic<pid_t> last_thread_changed;
+    uint64_t bytes_per_zone;
 
     CometQueue(size_t num_items_per_zone)
     {
@@ -66,6 +65,8 @@ struct CometQueue {
         const size_t pages_per_zone = (num_items_per_zone * item_size) / page_size + (((num_items_per_zone * item_size) % page_size) ? 1 : 0);
         const size_t zone_size = pages_per_zone * page_size;
         num_items_per_zone = zone_size / item_size;
+
+        bytes_per_zone = pages_per_zone * page_size;
 
         std::cout<< "Readjusted num items per zone: " << num_items_per_zone << std::endl;
 

@@ -59,7 +59,7 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
     if (info->si_addr == IPC_QUEUE_2->r1) {
         IPC_QUEUE_2->is_z1_free = 1;
 
-        while (!IPC_QUEUE_2->is_z2_free || IPC_QUEUE_2->z2_last_thread == curr_tid) {
+        while (!IPC_QUEUE_2->is_z2_free || IPC_QUEUE_2->last_thread_changed == curr_tid) {
             // TODO: investigate if usleep is needed indeed.
             // This was added because on some runs the execution does not finish and the thread
             // keeps waiting in the while loop even though the condition is modified by the other thread
@@ -67,7 +67,6 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
         }
 
         IPC_QUEUE_2->is_z2_free = 0;
-        IPC_QUEUE_2->z2_last_thread = curr_tid;
 
         // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
         if (app_threads[curr_tid]->threadRole == ThreadRole::MAIN) {
@@ -79,15 +78,14 @@ void segfault_sigaction(int sig, siginfo_t *info, void *ucontext)
 
         std::cout << "Thread " << curr_tid << " finished spinlocking and entering Z2" << std::endl;
     }
-    else if (info->si_addr == IPC_QUEUE_2->r2 || IPC_QUEUE_2->z1_last_thread == curr_tid) {
+    else if (info->si_addr == IPC_QUEUE_2->r2 || IPC_QUEUE_2->last_thread_changed == curr_tid) {
         IPC_QUEUE_2->is_z2_free = 1;
 
-        while (!IPC_QUEUE_2->is_z1_free || IPC_QUEUE_2->z1_last_thread == curr_tid) {
+        while (!IPC_QUEUE_2->is_z1_free || IPC_QUEUE_2->last_thread_changed == curr_tid) {
             usleep(100);
         }
 
         IPC_QUEUE_2->is_z1_free = 0;
-        IPC_QUEUE_2->z1_last_thread = curr_tid;
 
         // Must also make the enqueue / dequeue pointer field of the CometQueue point to the right zone
         if (app_threads[curr_tid]->threadRole == ThreadRole::MAIN) {

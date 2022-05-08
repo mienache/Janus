@@ -7,6 +7,7 @@
 #include <fstream>
 #include <list>
 #include <map>
+#include <vector>
 
 
 #define f.open(var)                 f.open(var, ios::in | ios::out)
@@ -88,6 +89,10 @@ struct basicblock{
     std::list<instr_t *> instrs;
 };
 extern void* dr_ctext;
+
+// Given a target instruction and a list of wanted registers, return those registers from the list
+// that are not used in the target instruction
+std::vector<reg_id_t> get_free_registers(std::vector<reg_id_t> wanted_registers, instr_t* target_instr);
 
 
 #endif

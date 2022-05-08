@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
+#include <vector>
+
 #include "dr_api.h"
 #include "util.h"
 using namespace std;
@@ -425,4 +427,36 @@ is_type_opnd(opnd_t opnd, int type){
 
 void print_test(){
     cout<<"test"<<endl;
+}
+
+std::vector<reg_id_t> get_free_registers(std::vector<reg_id_t> wanted_registers, instr_t* target_instr)
+{
+    std::vector<reg_id_t> used_reg;
+
+    for (int i = 0; i < instr_num_srcs(target_instr); ++i) {
+        opnd_t src = instr_get_src(target_instr, i);
+        if (!opnd_is_reg(src)) {
+            continue;
+        }
+
+        reg_id_t reg = opnd_get_reg(src);
+        used_reg.push_back(reg);
+    }
+
+    std::vector<reg_id_t> free_reg;
+    for (int i = 0; i < wanted_registers.size(); ++i) {
+        bool is_reg_free = 1;
+        for (int j = 0; j < used_reg.size(); ++j) {
+            if (reg_overlap(wanted_registers[i], used_reg[j])) {
+                is_reg_free = 0;
+                break;
+            }
+        }
+
+        if (is_reg_free) {
+            free_reg.push_back(wanted_registers[i]);
+        }
+    }
+
+    return free_reg;
 }
