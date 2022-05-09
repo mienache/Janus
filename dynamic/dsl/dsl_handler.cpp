@@ -17,6 +17,7 @@
 //#define INSERT_DEBUG_CLEAN_CALLS
 //#define PRINT_TRIGGER_INSTR
 //#define SHOW_INFO_ABOUT_CMP
+//#define SKIP_THREAD_CREATION
 
 std::vector <instr_t*> instructions_to_remove;
 
@@ -81,11 +82,11 @@ void count_load_instructions_handler(JANUS_CONTEXT){
 } 
 
 void thread_creation_handler(JANUS_CONTEXT){
-    /*
-    PAST_THREAD_CREATION_STAGE = 1;
-    CHECKER_THREAD_FINISHED = 1;
-    return;
-    */
+    #ifdef SKIP_THREAD_CREATION
+        PAST_THREAD_CREATION_STAGE = 1;
+        CHECKER_THREAD_FINISHED = 1;
+        return;
+    #endif
 
     std::cout << "Instrumenting through thread creation handler" << std::endl;
 
@@ -230,7 +231,7 @@ void main_handler(JANUS_CONTEXT) {
 void unexpected_dequeue()
 {
     std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
-    while(1) {
+    for (int i = 1; i <= 50; ++i) {
         std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
     }
 }
