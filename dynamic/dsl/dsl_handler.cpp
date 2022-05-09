@@ -575,7 +575,6 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
 
     instr_t *post_trigger = instr_get_next_app(trigger);
     assert(post_trigger);
-    assert(instr_is_cti(post_trigger));
 
     instr_t *load_enqueue_ptr_instr = XINST_CREATE_load(
         drcontext,
@@ -688,7 +687,6 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
 
     instr_t *post_trigger = instr_get_next_app(trigger);
     assert(post_trigger);
-    assert(instr_is_cti(post_trigger));
 
     instr_t *load_dequeue_ptr_instr = XINST_CREATE_load(
         drcontext,
