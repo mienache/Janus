@@ -23,6 +23,10 @@
 //#define PRINT_QUEUE_PTRS
 //#define PRINT_BB_TO_FILE
 
+// A cmp instruction can push 2 values into the restricted zone, hence error margin should be 2 x INCREMENT
+// INCREMENT is 16 when SIMD registers are supported
+const int ZONE_ERROR_MARGIN = 32;
+
 extern std::vector <instr_t*> instructions_to_remove;
 
 static dr_emit_flags_t
@@ -339,7 +343,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     #endif
 
     void *error_address = siginfo->access_address;
-    if (error_address < IPC_QUEUE_2->r1 || error_address > IPC_QUEUE_2->r2 + 16) {
+    if (error_address < IPC_QUEUE_2->r1 || error_address > IPC_QUEUE_2->r2 + ZONE_ERROR_MARGIN) {
         std::cout << "Non-comet ERROR " << std::endl;
         return DR_SIGNAL_DELIVER;
     }
@@ -391,23 +395,23 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
         }
 
-        //assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= 16);
-        if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= 16) {
+        //assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
+        if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2;
         }
-        if (llabs(siginfo->raw_mcontext->r11 - (uint64_t) error_address) <= 16) {
+        if (llabs(siginfo->raw_mcontext->r11 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;
             }
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2;
         }
-        if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= 16) {
+        if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;
             }
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z2;
         }
-        if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= 16){
+        if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;
             }
@@ -452,23 +456,23 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
         }
 
-        assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= 16);
-        if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= 16) {
+        assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
+        if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1;
         }
-        if (llabs(siginfo->raw_mcontext->r11 - (uint64_t)error_address) <= 16) {
+        if (llabs(siginfo->raw_mcontext->r11 - (uint64_t)error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1;
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;
             }
         }
-        if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= 16) {
+        if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z1;
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;
             }
         }
-        if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= 16) {
+        if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z1;
             while(1) {
                 std::cout << "Unexpected reg" << std::endl;

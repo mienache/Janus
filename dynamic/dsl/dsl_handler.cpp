@@ -14,6 +14,14 @@
 #include "handler.h"
 #include "util.h"
 
+#define SUPPORT_SIMD_REGISTERS
+
+#ifdef SUPPORT_SIMD_REGISTERS
+const int INCREMENT = 16;
+#else
+const int INCREMENT = 8;
+#endif
+
 //#define INSERT_DEBUG_CLEAN_CALLS
 //#define PRINT_TRIGGER_INSTR
 //#define PRINT_INSTRUCTION_INSTRUMENTATION_INFO
@@ -197,10 +205,8 @@ void main_handler(JANUS_CONTEXT) {
 
     opnd_t enqueue_location = make_mem_opnd_for_reg_from_register(reg, queue_ptr_reg);
 
-    int increment = 8;
     instr_t *enqueue_instr;
     if (reg_is_simd(reg)) {
-        increment = 16;
         enqueue_instr = INSTR_CREATE_movdqu(drcontext, enqueue_location, dest);
     }
     else {
@@ -210,7 +216,7 @@ void main_handler(JANUS_CONTEXT) {
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(increment)
+        OPND_CREATE_INT32(INCREMENT)
     );
 
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
@@ -365,7 +371,7 @@ void checker_handler(JANUS_CONTEXT) {
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(increment)
+        OPND_CREATE_INT32(INCREMENT)
     );
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
         drcontext,
@@ -638,12 +644,12 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
     instr_t *increment_queue_reg_instr1 = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(INCREMENT)
     );
     instr_t *increment_queue_reg_instr2 = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(INCREMENT)
     );
 
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
@@ -749,12 +755,12 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     instr_t *increment_queue_reg_instr1 = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(INCREMENT)
     );
     instr_t *increment_queue_reg_instr2 = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(INCREMENT)
     );
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
         drcontext,
