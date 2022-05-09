@@ -16,6 +16,7 @@
 
 //#define INSERT_DEBUG_CLEAN_CALLS
 //#define PRINT_TRIGGER_INSTR
+//#define PRINT_INSTRUCTION_INSTRUMENTATION_INFO
 //#define SHOW_INFO_ABOUT_CMP
 //#define SKIP_THREAD_CREATION
 
@@ -167,7 +168,7 @@ void main_handler(JANUS_CONTEXT) {
     }
 
     #ifdef PRINT_TRIGGER_INSTR
-    std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
+    std::cout << "    Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
     #endif
 
     if (!instr_num_dsts(trigger)) {
@@ -195,12 +196,21 @@ void main_handler(JANUS_CONTEXT) {
     );
 
     opnd_t enqueue_location = make_mem_opnd_for_reg_from_register(reg, queue_ptr_reg);
-    instr_t *enqueue_instr = XINST_CREATE_store(drcontext, enqueue_location, dest);
+
+    int increment = 8;
+    instr_t *enqueue_instr;
+    if (reg_is_simd(reg)) {
+        increment = 16;
+        enqueue_instr = INSTR_CREATE_movdqu(drcontext, enqueue_location, dest);
+    }
+    else {
+        enqueue_instr = XINST_CREATE_store(drcontext, enqueue_location, dest);
+    }
 
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(increment)
     );
 
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
@@ -224,7 +234,9 @@ void main_handler(JANUS_CONTEXT) {
     instrlist_meta_postinsert(bb, trigger, spill_queue_reg_instr);
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
-    dr_insert_clean_call(drcontext, bb, enqueue_instr, enqueue_debug, 0, 1, dest);
+    if (!reg_is_simd(reg)) {
+        dr_insert_clean_call(drcontext, bb, enqueue_instr, enqueue_debug, 0, 1, dest);
+    }
     #endif
 }
 
@@ -295,11 +307,14 @@ void checker_handler(JANUS_CONTEXT) {
     // ignore RSP and RBP
 
     #ifdef PRINT_TRIGGER_INSTR
-    std::cout << "Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
+    std::cout << "    Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
     #endif
 
     if (!instr_num_dsts(trigger)) {
-        //std::cout << "No dest" << std::endl;
+        #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+        std::cout << "No dest" << std::endl;
+        #endif
+
         checker_cmp_instr_handler(janus_context);
         return;
     }
@@ -307,7 +322,10 @@ void checker_handler(JANUS_CONTEXT) {
     opnd_t dest = instr_get_dst(trigger, 0);
 
     if (!opnd_is_reg(dest)) {
-        //std::cout << "del: Writing to memory, will remove it:" << std::endl;
+        #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+        std::cout << "del: Writing to memory, will remove it:" << std::endl;
+        #endif
+
         instructions_to_remove.push_back(trigger);
         return;
     }
@@ -325,7 +343,11 @@ void checker_handler(JANUS_CONTEXT) {
 
     reg_id_t reg = opnd_get_reg(dest);
 
-    // std::cout << "Dest register is " << get_register_name(reg) << std::endl;
+
+    #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+    std::cout << "Dest register is " << get_register_name(reg) << std::endl;
+    std::cout << "Instruction has any memory references: " << any_src_mem_ref << std::endl;
+    #endif
 
     if (reg == DR_REG_RBP || reg == DR_REG_RSP) {
         return;
@@ -338,10 +360,12 @@ void checker_handler(JANUS_CONTEXT) {
         opnd_create_reg(queue_ptr_reg),
         OPND_CREATE_ABSMEM((byte*) &(IPC_QUEUE_2->dequeue_pointer), OPSZ_8)
     );
+
+    int increment = reg_is_simd(reg) ? 16 : 8;
     instr_t *increment_queue_reg_instr = XINST_CREATE_add(
         drcontext,
         opnd_create_reg(queue_ptr_reg),
-        OPND_CREATE_INT32(8)
+        OPND_CREATE_INT32(increment)
     );
     instr_t *store_queue_reg_instr = XINST_CREATE_store(
         drcontext,
@@ -353,11 +377,19 @@ void checker_handler(JANUS_CONTEXT) {
 
     if (any_src_mem_ref) {
         // dequeue and load to reg, remove instruction
-        // std::cout << "del: Memory operands in instruction, will remove it:" << std::endl;
-        // instr_disassemble(drcontext, trigger, STDOUT);
-        // std::cout << endl;
+        #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+        std::cout << "del: Memory operands in instruction, will remove it:" << std::endl;
+        instr_disassemble(drcontext, trigger, STDOUT);
+        std::cout << endl;
+        #endif
 
-        instr_t *dequeue_instr = XINST_CREATE_load(drcontext, dest, dequeue_location);
+        instr_t *dequeue_instr;
+        if (reg_is_simd(reg)) {
+            dequeue_instr = INSTR_CREATE_movdqu(drcontext, dest, dequeue_location);
+        }
+        else {
+            dequeue_instr = XINST_CREATE_load(drcontext, dest, dequeue_location);
+        }
 
         instr_t *pre_trigger = instr_get_prev_app(trigger);
         if (pre_trigger) {
@@ -370,7 +402,9 @@ void checker_handler(JANUS_CONTEXT) {
         instrlist_postinsert(bb, trigger, load_dequeue_ptr_instr);
 
         #ifdef INSERT_DEBUG_CLEAN_CALLS
-        dr_insert_clean_call(drcontext, bb, dequeue_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(0));
+        if (!reg_is_simd(reg)) {
+            dr_insert_clean_call(drcontext, bb, dequeue_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(0));
+        }
         #endif
 
         // instrlist_remove(bb, trigger);
@@ -378,8 +412,20 @@ void checker_handler(JANUS_CONTEXT) {
     }
     else {
         // cmp against queue, keep instruction
-        // std::cout << "Keep instruction" << std::endl;
-        instr_t *cmp_instr = XINST_CREATE_cmp(drcontext, dest, dequeue_location);
+        #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+        std::cout << "Keep instruction and compare against dequeue" << std::endl;
+        #endif
+
+        instr_t *cmp_instr;
+        if (reg_is_simd(reg)) {
+            // COMISD works on 8 bytes, must readjust the dequeue location
+            dequeue_location = opnd_create_base_disp(queue_ptr_reg, DR_REG_NULL, 0, 0, OPSZ_8);
+            cmp_instr = INSTR_CREATE_comisd(drcontext, dest, dequeue_location);
+        }
+        else {
+            cmp_instr = XINST_CREATE_cmp(drcontext, dest, dequeue_location);
+        }
+
         instr_t *jmp_instr = INSTR_CREATE_jcc(drcontext, OP_jne, opnd_create_pc((app_pc)unexpected_dequeue));
         instr_set_translation(cmp_instr, instr_get_app_pc(trigger));
         instr_set_translation(jmp_instr, instr_get_app_pc(trigger));
@@ -391,7 +437,9 @@ void checker_handler(JANUS_CONTEXT) {
         instrlist_postinsert(bb, trigger, load_dequeue_ptr_instr);
 
         #ifdef INSERT_DEBUG_CLEAN_CALLS
-        dr_insert_clean_call(drcontext, bb, cmp_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(1));
+        if (!reg_is_simd(reg)) {
+            dr_insert_clean_call(drcontext, bb, cmp_instr, dequeue_debug, 0, 2, dest, OPND_CREATE_INT32(1));
+        }
         #endif
     }
 
@@ -501,6 +549,10 @@ opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg)
 
     if (reg_get_size(reg) == OPSZ_2) {
         return OPND_CREATE_MEM16(address_reg, 0);
+    }
+
+    if (reg_is_simd(reg)) {
+        return opnd_create_base_disp(address_reg, DR_REG_NULL, 0, 0, reg_get_size(reg));
     }
     
     return OPND_CREATE_MEM8(address_reg, 0);
@@ -742,8 +794,8 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
-    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
-    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
+    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
+    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr2, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
     #endif
 
     instructions_to_remove.push_back(trigger);
