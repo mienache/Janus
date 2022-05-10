@@ -581,7 +581,7 @@ opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size)
 
 int get_queue_index(void* ptr)
 {
-    return ((int) ptr - (int) IPC_QUEUE_2->z1) / 8;
+    return ((int) ptr - (int) IPC_QUEUE_2->z1) / INCREMENT;
 }
 
 void main_cmp_instr_handler(JANUS_CONTEXT)
