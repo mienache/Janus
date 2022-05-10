@@ -12,6 +12,7 @@
 #include <cstdlib>
 
 #include "dsl_core.h"
+#include "dsl_debug_utilities.h"
 #include "dsl_handler.h"
 #include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
@@ -43,12 +44,6 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT);
 
 dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo);
 
-// Helper function - TODO: move to another file
-void print_first_n_elements_from_queue(int n);
-
-void restore_state_handler(void *drcontext, void *tag, dr_mcontext_t *mcontext, bool restore_memory, bool app_code_consistent);
-
-
 /* Handler table */
 void **htable = NULL;
 
@@ -65,7 +60,6 @@ dr_init(client_id_t id)
     dr_register_thread_init_event(new_janus_thread);
     dr_register_thread_exit_event(exit_janus_thread);
     dr_register_signal_event(signal_handler);
-    // dr_register_restore_state_event(restore_state_handler);
 
     /* Initialise Janus components and file Janus global info */
     janus_init(id);
@@ -139,42 +133,6 @@ void exit_janus_thread(void *drcontext) {
     exit_routine();
 }
 
-// Helper variables to print the basic block files with unique names.
-int cnt1 = 0;
-int cnt2 = 0;
-
-
-// Helper method for generating the name of a file used to print the current basic block
-string get_basic_block_filename(void *drcontext, bool is_original_bb)
-{
-    string filename;
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
-        if (is_original_bb) {
-            ++cnt1; // Only increment counter if we're printing the original BB (to keep 1-1 mapping between filenames)
-            filename = "main_basic_block_" + std::to_string(cnt1);
-        }
-        else {
-            filename = "main_basic_block_modified_" + std::to_string(cnt1);
-        }
-    }
-    else {
-        if (is_original_bb) {
-            ++cnt2;
-            filename = "checker_basic_block_" + std::to_string(cnt2);
-        }
-        else {
-            filename = "checker_basic_block_modified_" + std::to_string(cnt2);
-        }
-    }
-
-    filename += is_original_bb ? ".txt" : "_modified.txt";
-
-    std::cout << "file: " << filename << std::endl;
-
-    return filename;
-}
-
-
 
 /* Main execution loop: this will be executed at every initial encounter of new basic block */
 static dr_emit_flags_t
@@ -228,14 +186,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     std::cout << "Processing basic block at " << (void*) bbAddr << " for TID = " << dr_get_thread_id(drcontext) << std::endl;
     #endif
 
-    // Next 5 lines just print the original basic block instructions (before the rules are applied)
-
     #ifdef PRINT_BB_TO_FILE
-    string filename = get_basic_block_filename(drcontext, 1);
-    app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
-    file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-    instrlist_disassemble(drcontext, tag_new, bb, output_file);
-    dr_close_file(output_file);
+        print_bb_to_file(drcontext, bb, 1);
     #endif
 
 
@@ -269,13 +221,8 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         instrlist_remove(bb, i);
     }
 
-    // Next 5 lines just print the modified basic block instructions (after the rules are applied)
     #ifdef PRINT_BB_TO_FILE
-    filename = get_basic_block_filename(drcontext, 0);
-    tag_new = instr_get_app_pc(instrlist_first_app(bb));
-    output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
-    instrlist_disassemble(drcontext, tag_new, bb, output_file);
-    dr_close_file(output_file);
+        print_bb_to_file(drcontext, bb, 0);
     #endif
 
     #ifdef PRINT_PROCESSING_BASIC_BLOCK
@@ -286,8 +233,6 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     std::cout << "Enq ptr = " << IPC_QUEUE_2->enqueue_pointer << std::endl;
     std::cout << "Deq ptr = " << IPC_QUEUE_2->dequeue_pointer << std::endl;
     #endif
-    // print_first_n_elements_from_queue(15);
-
 
     return DR_EMIT_DEFAULT;
 }
@@ -306,12 +251,6 @@ call_rule_handler(RuleOp rule_opcode, JANUS_CONTEXT) {
     fhandler(janus_context);
 }
 
-void spinlock()
-{
-    std::cout << "In spinlock" << std::endl;
-    sleep(3);
-    std::cout << "Spinlock done" << std::endl;
-}
 
 dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo) 
 {
@@ -491,20 +430,4 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     #endif
 
     return DR_SIGNAL_SUPPRESS;
-}
-
-
-void print_first_n_elements_from_queue(int n)
-{
-    std::cout << "First " << n << " elements of the queue are: " << std::endl;
-    int64_t *ptr = IPC_QUEUE_2->z1;
-    for (int i = 0; i < n; ++i) {
-        std::cout << i << ": " << (void*) *ptr << std::endl;
-        ++ptr;
-    }
-}
-
-void restore_state_handler(void *drcontext, void *tag, dr_mcontext_t *mcontext, bool restore_memory, bool app_code_consistent)
-{
-    // std::cout << "Should restore memory: " << restore_memory << std::endl;
 }
