@@ -191,7 +191,13 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     #endif
 
 
+    // There is (probably) a bug in the static analyser which sometimes inserts the same (PC, ruleID) into the rewrite table.
+    // An easy temporary fix is to keep track of which pairs of (PC, ruleID) have been applied to make sure instrumentation
+    // is done only once for each rule.
+    std::set<std::pair<int, int> > applied_rules;
+
     instructions_to_remove.clear();
+
     do {
         // The while below is needed because a linked list of rules might belong to different
         // basic blocks if an original basic block was split. This is because the PC of some
@@ -209,9 +215,12 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         }
 
         rule_opcode = rule->opcode;
-        // cout << "Rule opcode is: " << rule->opcode << "\n";
 
-        call_rule_handler(rule_opcode, janus_context);
+        const std::pair<int, int> p = std::make_pair(rule->pc, rule_opcode);
+        if (applied_rules.find(p) == applied_rules.end()) {
+            call_rule_handler(rule_opcode, janus_context);
+            applied_rules.insert(p);
+        }
 
         //This basic block may be annotated with more rules
         rule = rule->next;

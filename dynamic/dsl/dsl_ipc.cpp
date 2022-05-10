@@ -65,11 +65,6 @@ int consume_value(BasicQueue *queue)
 
 void enqueue(BasicQueue *queue, uint64_t register_value)
 {
-    if (!PAST_THREAD_CREATION_STAGE) {
-        std::cout << "Not yet past thread creation stage, skipping any communication" << std::endl;
-        return;
-    }
-
     append_value(queue, register_value);
 }
 

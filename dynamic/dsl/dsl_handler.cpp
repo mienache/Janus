@@ -23,6 +23,9 @@ const int INCREMENT = 8;
 #endif
 
 //#define INSERT_DEBUG_CLEAN_CALLS
+#define SKIP_ENQUEUE_DEBUG
+//#define SKIP_DEQUEUE_DEBUG
+
 //#define PRINT_TRIGGER_INSTR
 //#define PRINT_INSTRUCTION_INSTRUMENTATION_INFO
 //#define SHOW_INFO_ABOUT_CMP
@@ -33,7 +36,7 @@ std::vector <instr_t*> instructions_to_remove;
 // If we used a fixed register for the queue pointer, sometimes it may coincide with the register that has
 // to be stored in memory (or a source register). The easiest option is to use an alternative register when
 // that happens, and the vector below provides a list of potential candidates
-std::vector <reg_id_t> INSTRUMENTATION_REGISTERS = {DR_REG_R10, DR_REG_R11, DR_REG_R12, DR_REG_R13, DR_REG_R9};
+std::vector <reg_id_t> INSTRUMENTATION_REGISTERS = {DR_REG_R10, DR_REG_R11, DR_REG_R12, DR_REG_R13, DR_REG_R9, DR_REG_R8};
 
 // Index of the AppThread's spill slot where the register that will hold the queue pointer
 // will be spilled before loading the queue pointer.
@@ -92,7 +95,6 @@ void count_load_instructions_handler(JANUS_CONTEXT){
 
 void thread_creation_handler(JANUS_CONTEXT){
     #ifdef SKIP_THREAD_CREATION
-        PAST_THREAD_CREATION_STAGE = 1;
         CHECKER_THREAD_FINISHED = 1;
         return;
     #endif
@@ -151,11 +153,15 @@ int get_queue_index(void* ptr);
 
 void enqueue_debug(int64_t enqueued_value)
 {
+    #ifdef SKIP_ENQUEUE_DEBUG
+        return;
+    #endif
+
     std::cout << "In enqueue_debug" << std::endl;
 
     const int index = get_queue_index(IPC_QUEUE_2->enqueue_pointer);
     std::cout << "Enqueing to index: " << index << std::endl;
-    std::cout << "Enqueued value = " << enqueued_value << std::endl;
+    std::cout << "Enqueued value = " << (void*) enqueued_value << std::endl;
 }
 
 void main_handler(JANUS_CONTEXT) {
@@ -163,9 +169,6 @@ void main_handler(JANUS_CONTEXT) {
         return;
     }
 
-    if (!PAST_THREAD_CREATION_STAGE) {
-        return;
-    }
     // std::cout << "Instrumenting TID " << dr_get_thread_id(drcontext) << " through main load /move handler" << std::endl;
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
@@ -249,13 +252,17 @@ void main_handler(JANUS_CONTEXT) {
 void unexpected_dequeue()
 {
     std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
-    for (int i = 1; i <= 50; ++i) {
+    for (int i = 1; i <= 5; ++i) {
         std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
     }
 }
 
 void dequeue_debug(int64_t expected_value, int asserting)
 {
+    #ifdef SKIP_DEQUEUE_DEBUG
+        return;
+    #endif
+
     std::cout << "In dequeue_debug" << std::endl;
 
     if (IPC_QUEUE_2->dequeue_pointer >= IPC_QUEUE_2->r2) {
@@ -266,10 +273,10 @@ void dequeue_debug(int64_t expected_value, int asserting)
     const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
     const int64_t curr_value = *((int64_t*) (IPC_QUEUE_2->dequeue_pointer));
     std::cout << "Dequeing from index: " << index << std::endl;
-    std::cout << "Current value: " << curr_value << std::endl;
+    std::cout << "Current value: " << (void*) curr_value << std::endl;
 
     if (asserting) {
-        std::cout << "Expected value: " << expected_value << std::endl;
+        std::cout << "Expected value: " << (void*) expected_value << std::endl;
     }
     else {
         std::cout << "Not asserting" << std::endl;
@@ -800,8 +807,8 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
-    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
-    dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr2, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
+    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
+    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr2, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
     #endif
 
     instructions_to_remove.push_back(trigger);

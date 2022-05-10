@@ -26,7 +26,7 @@ std::cout << "STORE IS " << Instruction::Store << std::endl;
 for (auto &func: jc.functions){
     livenessAnalysis(&func);
     for (auto &I: func.instrs){
-        std::cout << "Instruction " << (void*) I.pc << ": " << I << std::endl;
+        // std::cout << "Instruction " << (void*) I.pc << ": " << I << std::endl;
 
         if(instr_should_be_instrumented_for_comet(I)) {
             bitmask = func.liveRegIn[I.id].bits;

@@ -21,7 +21,6 @@ extern AppThread *checker_thread;
 
 extern int NUM_THREADS;
 extern std::atomic<bool> CHECKER_THREAD_FINISHED;
-extern std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 extern void *NEW_THREAD_START_PTR;
 
 enum ThreadRole {

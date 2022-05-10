@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <iomanip>
@@ -29,7 +30,6 @@ std::map <pid_t, AppThread*> app_threads;
 
 int NUM_THREADS;
 std::atomic<bool> CHECKER_THREAD_FINISHED;
-std::atomic<bool> PAST_THREAD_CREATION_STAGE;
 void *NEW_THREAD_START_PTR;
 
 void* alloc_thread_stack(size_t size);
@@ -152,7 +152,8 @@ void run_thread(void *raw_app_thread) {
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
     std::cout << "(From TID = " << gettid() << "): New pid = " << newpid << std::endl;
 
-    PAST_THREAD_CREATION_STAGE = 1;
+    IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
+    memset(IPC_QUEUE_2->z1, 0, IPC_QUEUE_2->bytes_per_zone);
 }
 
 void* alloc_thread_stack(size_t size)
