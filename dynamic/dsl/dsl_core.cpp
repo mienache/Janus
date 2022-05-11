@@ -229,8 +229,10 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         rule = rule->next;
     }while(rule);
 
-    for (auto i: instructions_to_remove) {
-        instrlist_remove(bb, i);
+    if (curr_thread->threadRole == ThreadRole::CHECKER) {
+        for (auto i: instructions_to_remove) {
+            instrlist_remove(bb, i);
+        }
     }
 
     #ifdef PRINT_BB_TO_FILE
