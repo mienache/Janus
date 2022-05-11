@@ -36,7 +36,15 @@ std::vector <instr_t*> instructions_to_remove;
 // If we used a fixed register for the queue pointer, sometimes it may coincide with the register that has
 // to be stored in memory (or a source register). The easiest option is to use an alternative register when
 // that happens, and the vector below provides a list of potential candidates
-std::vector <reg_id_t> INSTRUMENTATION_REGISTERS = {DR_REG_R10, DR_REG_R11, DR_REG_R12, DR_REG_R13, DR_REG_R9, DR_REG_R8};
+std::vector <reg_id_t> INSTRUMENTATION_REGISTERS = {
+    // DR_REG_RDI,
+    DR_REG_R10,
+    DR_REG_R11,
+    DR_REG_R12,
+    DR_REG_R13,
+    DR_REG_R9,
+    DR_REG_R8
+};
 
 // Index of the AppThread's spill slot where the register that will hold the queue pointer
 // will be spilled before loading the queue pointer.
@@ -235,12 +243,21 @@ void main_handler(JANUS_CONTEXT) {
     instr_t *spill_queue_reg_instr = create_spill_reg_instr(drcontext, queue_ptr_reg, spill_slot);
     instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, queue_ptr_reg, spill_slot);
 
-    instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
+    }
+
+    #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
+    std::cout << "Store queue ptr reg: " << inRegSet(bitmask, queue_ptr_reg) << std::endl;
+    #endif
+
     instrlist_postinsert(bb, trigger, store_queue_reg_instr);
     instrlist_postinsert(bb, trigger, increment_queue_reg_instr);
     instrlist_postinsert(bb, trigger, enqueue_instr);
     instrlist_postinsert(bb, trigger, load_enqueue_ptr_instr);
-    instrlist_meta_postinsert(bb, trigger, spill_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_postinsert(bb, trigger, spill_queue_reg_instr);
+    }
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
     if (!reg_is_simd(reg)) {
@@ -463,8 +480,10 @@ void checker_handler(JANUS_CONTEXT) {
     instr_t *spill_queue_reg_instr = create_spill_reg_instr(drcontext, queue_ptr_reg, spill_slot);
     instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, queue_ptr_reg, spill_slot);
 
-    instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
-    instrlist_meta_postinsert(bb, store_queue_reg_instr, restore_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
+        instrlist_meta_postinsert(bb, store_queue_reg_instr, restore_queue_reg_instr);
+    }
 }
 
 
@@ -595,6 +614,7 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
 {
     // "free_registers" below refer to registers not used in the trigger instruction
     instr_t * trigger = get_trigger_instruction(bb,rule);
+    uint64_t bitmask = rule->reg1;
 
     //std::cout << "Main handling cmp at " << (void*) instr_get_app_pc(trigger) << std::endl;
     std::vector<reg_id_t> free_registers = get_free_registers(INSTRUMENTATION_REGISTERS, trigger);
@@ -683,13 +703,17 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
     instr_set_translation(enqueue_instr1, instr_get_app_pc(trigger));
     instr_set_translation(enqueue_instr2, instr_get_app_pc(trigger));
 
-    instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
+    }
     instrlist_meta_preinsert(bb, trigger, spill_tmp_reg1_instr);
     instrlist_meta_preinsert(bb, trigger, spill_tmp_reg2_instr);
 
     instrlist_postinsert(bb, trigger, restore_tmp_reg2_instr);
     instrlist_postinsert(bb, trigger, restore_tmp_reg1_instr);
-    instrlist_postinsert(bb, trigger, restore_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_postinsert(bb, trigger, restore_queue_reg_instr);
+    }
     instrlist_postinsert(bb, trigger, store_queue_reg_instr);
     instrlist_postinsert(bb, trigger, increment_queue_reg_instr2);
     instrlist_postinsert(bb, trigger, enqueue_instr2);
@@ -708,6 +732,7 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
 void checker_cmp_instr_handler(JANUS_CONTEXT)
 {
     instr_t * trigger = get_trigger_instruction(bb,rule);
+    uint64_t bitmask = rule->reg1;
 
     //std::cout << "Checker handling cmp at " << (void*) instr_get_app_pc(trigger) << std::endl;
 
@@ -791,7 +816,9 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     instr_t *restore_tmp_reg2_instr = create_restore_reg_instr(drcontext, tmp_reg2, spill_slot3);
 
     // Add dequeue and replace trigger with new cmp
-    instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
+    }
     instrlist_meta_preinsert(bb, trigger, spill_tmp_reg1_instr);
     instrlist_meta_preinsert(bb, trigger, spill_tmp_reg2_instr);
     instrlist_preinsert(bb, trigger, load_dequeue_ptr_instr);
@@ -804,7 +831,9 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
 
     instrlist_meta_postinsert(bb, trigger, restore_tmp_reg2_instr);
     instrlist_meta_postinsert(bb, trigger, restore_tmp_reg1_instr);
-    instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
+    }
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
     //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));

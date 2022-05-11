@@ -431,16 +431,21 @@ void print_test(){
 
 std::vector<reg_id_t> get_free_registers(std::vector<reg_id_t> wanted_registers, instr_t* target_instr)
 {
-    std::vector<reg_id_t> used_reg;
 
+    std::vector<opnd_t> all_operands;
+    if (instr_num_dsts(target_instr)) {
+        all_operands.push_back(instr_get_dst(target_instr, 0));
+    }
     for (int i = 0; i < instr_num_srcs(target_instr); ++i) {
-        opnd_t src = instr_get_src(target_instr, i);
-        if (!opnd_is_reg(src)) {
-            continue;
-        }
+        all_operands.push_back(instr_get_src(target_instr, i));
+    }
 
-        reg_id_t reg = opnd_get_reg(src);
-        used_reg.push_back(reg);
+    std::vector<reg_id_t> used_reg;
+    for (int i = 0; i < all_operands.size(); ++i) {
+        opnd_t opnd = all_operands[i];
+        for (int j = 0; j < opnd_num_regs_used(opnd); ++j) {
+            used_reg.push_back(opnd_get_reg_used(opnd, j));
+        }
     }
 
     std::vector<reg_id_t> free_reg;

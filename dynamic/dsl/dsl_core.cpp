@@ -130,6 +130,9 @@ void exit_janus_thread(void *drcontext) {
         std::cout << "UNKNOWN thread leaving." << std::endl;
     }
 
+    std::cout << "Enq ptr = " << IPC_QUEUE_2->enqueue_pointer << std::endl;
+    std::cout << "Deq ptr = " << IPC_QUEUE_2->dequeue_pointer << std::endl;
+
     exit_routine();
 }
 
@@ -348,22 +351,16 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2;
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z2;
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
             siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z2;
+        }
+        if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
+            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z2;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO
@@ -404,27 +401,21 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
         }
 
-        assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t)error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1;
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z1;
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z1;
-            while(1) {
-                std::cout << "Unexpected reg" << std::endl;
-            }
+        }
+        if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z1;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO

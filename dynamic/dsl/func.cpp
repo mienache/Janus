@@ -29,7 +29,7 @@ void exit_routine(){
 }
 void init_routine(){
     init_num_threads(2);
-    IPC_QUEUE = initialise_queue();
+    //IPC_QUEUE = initialise_queue();
     IPC_QUEUE_2 = initialise_comet_queue();
     /*--- Init Start ---*/
 
