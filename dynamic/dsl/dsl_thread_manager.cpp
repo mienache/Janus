@@ -149,11 +149,13 @@ void run_thread(void *raw_app_thread) {
 
     std::cout << "Calling clone" << std::endl;
 
+    IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
+    memset(IPC_QUEUE_2->z1, 0, IPC_QUEUE_2->bytes_per_zone);
+    memset(IPC_QUEUE_2->z2, 0, IPC_QUEUE_2->bytes_per_zone);
+
     int newpid = clone(main_ptr, thread_stack, flags, NULL, NULL, NULL, NULL);
     std::cout << "(From TID = " << gettid() << "): New pid = " << newpid << std::endl;
 
-    IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
-    memset(IPC_QUEUE_2->z1, 0, IPC_QUEUE_2->bytes_per_zone);
 }
 
 void* alloc_thread_stack(size_t size)
