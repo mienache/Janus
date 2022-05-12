@@ -4,6 +4,7 @@
 #include <atomic>
 #include <iostream>
 #include <map>
+#include <vector>
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -112,5 +113,9 @@ extern CometQueue *IPC_QUEUE_2;
 
 BasicQueue* initialise_queue();
 CometQueue* initialise_comet_queue();
+
+void add_instrumentation_for_comet_enqueue(JANUS_CONTEXT, CometQueue *queue);
+
+extern std::vector <reg_id_t> INSTRUMENTATION_REGISTERS;
 
 #endif
