@@ -115,7 +115,16 @@ BasicQueue* initialise_queue();
 CometQueue* initialise_comet_queue();
 
 void add_instrumentation_for_comet_enqueue(JANUS_CONTEXT, CometQueue *queue);
+void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue);
 
 extern std::vector <reg_id_t> INSTRUMENTATION_REGISTERS;
+
+// If instructions are to be removed, they should be removed after
+// all instrumentation has been performed in a given basic block.
+// Otherwise, if they are removed while instrumenting the basic block,
+// the PC of the rest of the instructions will be readjusted hence
+// the mappings from PC -> rule won't be valid anymore.
+extern std::vector <instr_t*> instructions_to_remove;
+
 
 #endif
