@@ -52,45 +52,13 @@ const unsigned QUEUE_PTR_SPILL_SLOT_INDEX = 0;
 const unsigned TMP_REG_SPILL_SLOT_INDEX_1 = 1;
 const unsigned TMP_REG_SPILL_SLOT_INDEX_2 = 2;
 
-instr_t* create_spill_reg_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
-instr_t* create_restore_reg_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
 void unexpected_dequeue();
 void main_cmp_instr_handler(JANUS_CONTEXT);
 void checker_cmp_instr_handler(JANUS_CONTEXT);
 
-opnd_t make_mem_opnd_for_reg(reg_id_t reg, void *address);
-opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg);
-opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size);
-
-bool opnd_is_memory_register(opnd_t o)
-{
-    return (
-        opnd_get_reg(o) == DR_REG_RSP
-     || opnd_get_reg(o) == DR_REG_RBP
-    );
-}
-
-void print_func_entry_msg(void *drcontext, string func_name)
-{
-    string thread_role;
-    if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
-        thread_role = "MAIN";
-    }
-    else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
-        thread_role = "CHECKER";
-    }
-    else {
-        thread_role = "UNKNOWN";
-    }
-
-    std::cout << "Thread " << thread_role << " enters " << func_name << std::endl;
-}
 
 /*--- Dynamic Handlers Start ---*/
 void count_load_instructions_handler(JANUS_CONTEXT){
-    // Uncomment below to monitor when this handler is invoked
-    // print_func_entry_msg(drcontext, "handler_1");
-
     return;
     instr_t * trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
@@ -155,21 +123,6 @@ void thread_creation_handler(JANUS_CONTEXT){
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
     */
-}
-
-int get_queue_index(void* ptr);
-
-void enqueue_debug(int64_t enqueued_value)
-{
-    #ifdef SKIP_ENQUEUE_DEBUG
-        return;
-    #endif
-
-    std::cout << "In enqueue_debug" << std::endl;
-
-    const int index = get_queue_index(IPC_QUEUE_2->enqueue_pointer);
-    std::cout << "Enqueing to index: " << index << std::endl;
-    std::cout << "Enqueued value = " << (void*) enqueued_value << std::endl;
 }
 
 void main_handler(JANUS_CONTEXT) {
@@ -274,50 +227,6 @@ void unexpected_dequeue()
     }
 }
 
-void dequeue_debug(int64_t expected_value, int asserting)
-{
-    #ifdef SKIP_DEQUEUE_DEBUG
-        return;
-    #endif
-
-    std::cout << "In dequeue_debug" << std::endl;
-
-    if (IPC_QUEUE_2->dequeue_pointer >= IPC_QUEUE_2->r2) {
-        std::cout << "R zone" << std::endl;
-        return;
-    }
-
-    const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
-    const int64_t curr_value = *((int64_t*) (IPC_QUEUE_2->dequeue_pointer));
-    std::cout << "Dequeing from index: " << index << std::endl;
-    std::cout << "Current value: " << (void*) curr_value << std::endl;
-
-    if (asserting) {
-        std::cout << "Expected value: " << (void*) expected_value << std::endl;
-    }
-    else {
-        std::cout << "Not asserting" << std::endl;
-    }
-
-    if (asserting && curr_value != expected_value) {
-        dump_registers();
-    }
-}
-
-void after_dequeue_debug(int64_t dequeued_val)
-{
-    std::cout << "In after dequeue_debug" << std::endl;
-
-    if (IPC_QUEUE_2->dequeue_pointer >= IPC_QUEUE_2->r2) {
-        std::cout << "R zone" << std::endl;
-        return;
-    }
-
-    const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
-    std::cout << "Dequeued from index: " << index << std::endl;
-    std::cout << "Current value: " << *((int64_t*) (IPC_QUEUE_2->dequeue_pointer)) << std::endl;
-    std::cout << "Dequeued value: " << dequeued_val << std::endl;
-}
 
 void checker_handler(JANUS_CONTEXT) {
     if (!(checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid)) {
@@ -534,81 +443,6 @@ void create_handler_table(){
 
 /*--- Dynamic Handlers Finish ---*/
 
-instr_t* create_spill_reg_instr(void *drcontext, reg_id_t reg, int64_t *spill_slot)
-{
-    return XINST_CREATE_store(
-        drcontext,
-        OPND_CREATE_ABSMEM((byte*) spill_slot, reg_get_size(reg)),
-        opnd_create_reg(reg)
-    );
-
-}
-instr_t* create_restore_reg_instr(void *drcontext, reg_id_t reg, int64_t *spill_slot)
-{
-    return XINST_CREATE_load(
-        drcontext,
-        opnd_create_reg(reg),
-        OPND_CREATE_ABSMEM((byte*) spill_slot, reg_get_size(reg))
-    );
-}
-
-opnd_t make_mem_opnd_for_reg(reg_id_t reg, void *address)
-{
-    if (reg_is_64bit(reg)) {
-        return OPND_CREATE_ABSMEM(address, OPSZ_8);
-    }
-
-    if (reg_is_32bit(reg)) {
-        return OPND_CREATE_ABSMEM(address, OPSZ_4);
-    }
-
-    if (reg_get_size(reg) == OPSZ_2) {
-        return OPND_CREATE_ABSMEM(address, OPSZ_2);
-    }
-
-    return OPND_CREATE_ABSMEM(address, OPSZ_1);
-}
-
-opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg)
-{
-    if (reg_is_64bit(reg)) {
-        return OPND_CREATE_MEM64(address_reg, 0);
-    }
-
-    if (reg_is_32bit(reg)) {
-        return OPND_CREATE_MEM32(address_reg, 0);
-    }
-
-    if (reg_get_size(reg) == OPSZ_2) {
-        return OPND_CREATE_MEM16(address_reg, 0);
-    }
-
-    if (reg_is_simd(reg)) {
-        return opnd_create_base_disp(address_reg, DR_REG_NULL, 0, 0, reg_get_size(reg));
-    }
-    
-    return OPND_CREATE_MEM8(address_reg, 0);
-}
-
-opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size)
-{
-    if (size == OPSZ_8) {
-        return OPND_CREATE_MEM64(reg, 0);
-    }
-    else if (size == OPSZ_4) {
-        return OPND_CREATE_MEM32(reg, 0);
-    }
-    else if (size == OPSZ_2) {
-        return OPND_CREATE_MEM16(reg, 0);
-    }
-
-    return OPND_CREATE_MEM8(reg, 0);
-}
-
-int get_queue_index(void* ptr)
-{
-    return ((int) ptr - (int) IPC_QUEUE_2->z1) / INCREMENT;
-}
 
 void main_cmp_instr_handler(JANUS_CONTEXT)
 {

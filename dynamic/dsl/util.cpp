@@ -465,3 +465,82 @@ std::vector<reg_id_t> get_free_registers(std::vector<reg_id_t> wanted_registers,
 
     return free_reg;
 }
+
+instr_t* create_spill_reg_instr(void *drcontext, reg_id_t reg, int64_t *spill_slot)
+{
+    return XINST_CREATE_store(
+        drcontext,
+        OPND_CREATE_ABSMEM((byte*) spill_slot, reg_get_size(reg)),
+        opnd_create_reg(reg)
+    );
+
+}
+instr_t* create_restore_reg_instr(void *drcontext, reg_id_t reg, int64_t *spill_slot)
+{
+    return XINST_CREATE_load(
+        drcontext,
+        opnd_create_reg(reg),
+        OPND_CREATE_ABSMEM((byte*) spill_slot, reg_get_size(reg))
+    );
+}
+
+opnd_t make_mem_opnd_for_reg(reg_id_t reg, void *address)
+{
+    if (reg_is_64bit(reg)) {
+        return OPND_CREATE_ABSMEM(address, OPSZ_8);
+    }
+
+    if (reg_is_32bit(reg)) {
+        return OPND_CREATE_ABSMEM(address, OPSZ_4);
+    }
+
+    if (reg_get_size(reg) == OPSZ_2) {
+        return OPND_CREATE_ABSMEM(address, OPSZ_2);
+    }
+
+    return OPND_CREATE_ABSMEM(address, OPSZ_1);
+}
+
+opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg)
+{
+    if (reg_is_64bit(reg)) {
+        return OPND_CREATE_MEM64(address_reg, 0);
+    }
+
+    if (reg_is_32bit(reg)) {
+        return OPND_CREATE_MEM32(address_reg, 0);
+    }
+
+    if (reg_get_size(reg) == OPSZ_2) {
+        return OPND_CREATE_MEM16(address_reg, 0);
+    }
+
+    if (reg_is_simd(reg)) {
+        return opnd_create_base_disp(address_reg, DR_REG_NULL, 0, 0, reg_get_size(reg));
+    }
+    
+    return OPND_CREATE_MEM8(address_reg, 0);
+}
+
+opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size)
+{
+    if (size == OPSZ_8) {
+        return OPND_CREATE_MEM64(reg, 0);
+    }
+    else if (size == OPSZ_4) {
+        return OPND_CREATE_MEM32(reg, 0);
+    }
+    else if (size == OPSZ_2) {
+        return OPND_CREATE_MEM16(reg, 0);
+    }
+
+    return OPND_CREATE_MEM8(reg, 0);
+}
+
+bool opnd_is_memory_register(opnd_t o)
+{
+    return (
+        opnd_get_reg(o) == DR_REG_RSP
+     || opnd_get_reg(o) == DR_REG_RBP
+    );
+}

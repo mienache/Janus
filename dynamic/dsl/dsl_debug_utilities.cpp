@@ -4,6 +4,12 @@
 #include "dsl_thread_manager.h"
 
 
+#ifdef SUPPORT_SIMD_REGISTERS
+const int INCREMENT = 16;
+#else
+const int INCREMENT = 8;
+#endif
+
 void print_first_n_elements_from_queue(CometQueue *queue, int n)
 {
     std::cout << "First " << n << " elements of the queue are: " << std::endl;
@@ -55,4 +61,67 @@ void print_bb_to_file(void *drcontext, instrlist_t *bb, bool is_original_bb)
     file_t output_file = dr_open_file(filename.c_str(), DR_FILE_WRITE_OVERWRITE);
     instrlist_disassemble(drcontext, tag_new, bb, output_file);
     dr_close_file(output_file);
+}
+
+void enqueue_debug(int64_t enqueued_value)
+{
+    #ifdef SKIP_ENQUEUE_DEBUG
+        return;
+    #endif
+
+    std::cout << "In enqueue_debug" << std::endl;
+
+    const int index = get_queue_index(IPC_QUEUE_2->enqueue_pointer);
+    std::cout << "Enqueing to index: " << index << std::endl;
+    std::cout << "Enqueued value = " << (void*) enqueued_value << std::endl;
+}
+
+void dequeue_debug(int64_t expected_value, int asserting)
+{
+    #ifdef SKIP_DEQUEUE_DEBUG
+        return;
+    #endif
+
+    std::cout << "In dequeue_debug" << std::endl;
+
+    if (IPC_QUEUE_2->dequeue_pointer >= IPC_QUEUE_2->r2) {
+        std::cout << "R zone" << std::endl;
+        return;
+    }
+
+    const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
+    const int64_t curr_value = *((int64_t*) (IPC_QUEUE_2->dequeue_pointer));
+    std::cout << "Dequeing from index: " << index << std::endl;
+    std::cout << "Current value: " << (void*) curr_value << std::endl;
+
+    if (asserting) {
+        std::cout << "Expected value: " << (void*) expected_value << std::endl;
+    }
+    else {
+        std::cout << "Not asserting" << std::endl;
+    }
+
+    if (asserting && curr_value != expected_value) {
+        dump_registers();
+    }
+}
+
+void after_dequeue_debug(int64_t dequeued_val)
+{
+    std::cout << "In after dequeue_debug" << std::endl;
+
+    if (IPC_QUEUE_2->dequeue_pointer >= IPC_QUEUE_2->r2) {
+        std::cout << "R zone" << std::endl;
+        return;
+    }
+
+    const int index = get_queue_index(IPC_QUEUE_2->dequeue_pointer);
+    std::cout << "Dequeued from index: " << index << std::endl;
+    std::cout << "Current value: " << *((int64_t*) (IPC_QUEUE_2->dequeue_pointer)) << std::endl;
+    std::cout << "Dequeued value: " << dequeued_val << std::endl;
+}
+
+int get_queue_index(void* ptr)
+{
+    return ((int) ptr - (int) IPC_QUEUE_2->z1) / INCREMENT;
 }

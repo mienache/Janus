@@ -95,4 +95,31 @@ extern void* dr_ctext;
 std::vector<reg_id_t> get_free_registers(std::vector<reg_id_t> wanted_registers, instr_t* target_instr);
 
 
+// Given a register and a memory location, create a store using XINST_CREATE_store which spills
+// the specified register into the specified spill slot
+instr_t* create_spill_reg_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
+
+// Given a register and a memory location, create a load using XINST_CREATE_load which loads 
+// the specified register from the specified spill slot
+instr_t* create_restore_reg_instr(void *drcontext, reg_id_t queue_ptr_reg, int64_t *spill_slot);
+
+
+// Given a register and an address, create a memory operand which references the specified address
+// and has the same size as the specified register
+opnd_t make_mem_opnd_for_reg(reg_id_t reg, void *address);
+
+// Given a register `reg` and an address register, create a memory operand which references the address
+// held by the specified address register and has the same size as the specified register `reg`.
+// (i.e., it uses the `address_reg` as the base and a 0 displacement)
+opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg);
+
+// Given a register `reg` and a `size`, create a memory reference operand whose base register is the
+// specified register `reg` (and displacement is zero), and whose size is the specifid `size`.
+opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size);
+
+// Check if the specified operand `o` is a memory register (RBP or RSP on x86-64)
+bool opnd_is_memory_register(opnd_t o);
+
 #endif
+
+
