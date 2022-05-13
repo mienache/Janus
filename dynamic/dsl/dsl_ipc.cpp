@@ -16,6 +16,8 @@
 
 /*--- IPC Declarations Start ---*/
 
+CometQueue *COMET_QUEUE;
+
 /*--- IPC Declarations Finish ---*/
 
 //const int DEFAULT_QUEUE_SIZE = 100000000;
@@ -565,4 +567,9 @@ void unexpected_dequeue()
     for (int i = 1; i <= 5; ++i) {
         std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
     }
+}
+
+void set_main_queue(CometQueue *queue)
+{
+    IPC_QUEUE_2 = queue;
 }

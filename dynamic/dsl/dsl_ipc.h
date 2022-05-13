@@ -19,6 +19,8 @@ struct CometQueue;
 
 /*--- IPC Declarations Start ---*/
 
+extern CometQueue *COMET_QUEUE;
+
 /*--- IPC Declarations Finish ---*/
 
 struct BasicQueue {
@@ -116,6 +118,7 @@ CometQueue* initialise_comet_queue();
 
 void add_instrumentation_for_comet_enqueue(JANUS_CONTEXT, CometQueue *queue);
 void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue);
+void set_main_queue(CometQueue *queue);
 
 extern std::vector <reg_id_t> INSTRUMENTATION_REGISTERS;
 
