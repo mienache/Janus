@@ -17,9 +17,10 @@ using namespace janus;
 uint64_t bitmask;
 
 void ruleGenerationTemplate(JanusContext &jc) {
+bool instr_should_be_instrumented_for_comet(Instruction instr);
+
 /*--- Static RuleGen Start ---*/
 
-bool instr_should_be_instrumented_for_comet(Instruction instr);
 
 std::cout << "LOAD IS " << Instruction::Load << std::endl;
 std::cout << "STORE IS " << Instruction::Store << std::endl;
