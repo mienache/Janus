@@ -79,4 +79,8 @@ void init_num_threads(int num_threads);
 // Janus or DynamoRIO details to the Cinnamon interface.
 void do_pre_thread_creation_maintenance(JANUS_CONTEXT);
 
+void wait_for_checker();
+
+void mark_checker_thread_finished();
+
 #endif

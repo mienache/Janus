@@ -115,29 +115,6 @@ void checker_handler(JANUS_CONTEXT) {
 }
 
 
-void wait_for_checker()
-{
-    std::cout << "Thread " << gettid() << " now waiting for checker thread" << std::endl;
-
-    // Free all zones in the queue:
-    if (IPC_QUEUE_2->enqueue_pointer < IPC_QUEUE_2->z2) {
-        IPC_QUEUE_2->is_z1_free = 1;
-    }
-    else {
-        IPC_QUEUE_2->is_z2_free = 1;
-    }
-    IPC_QUEUE_2->last_thread_changed = 0;
-
-    while (!CHECKER_THREAD_FINISHED);
-    std::cout << "Thread " << gettid() << " finished waiting for checker" << std::endl;
-}
-
-void mark_checker_thread_finished()
-{
-    std::cout << "Thread " << gettid() << " now marking completion" << std::endl;
-    CHECKER_THREAD_FINISHED = 1;
-}
-
 void threads_sync_handler(JANUS_CONTEXT) {
     std::cout << "In threads_sync_handler: TID = " << dr_get_thread_id(drcontext) << std::endl;
 
