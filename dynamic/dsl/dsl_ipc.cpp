@@ -21,8 +21,8 @@ CometQueue *COMET_QUEUE;
 /*--- IPC Declarations Finish ---*/
 
 //const int DEFAULT_QUEUE_SIZE = 100000000;
-//const int DEFAULT_QUEUE_SIZE = 2500000;
-const int DEFAULT_QUEUE_SIZE = 2 * (1e5);
+const int DEFAULT_QUEUE_SIZE = 2500000;
+//const int DEFAULT_QUEUE_SIZE = 2 * (1e5);
 //const int DEFAULT_QUEUE_SIZE = 50000;
 //const int DEFAULT_QUEUE_SIZE = 5000;
 
@@ -39,13 +39,15 @@ CometQueue *IPC_QUEUE_2;
 // to be stored in memory (or a source register). The easiest option is to use an alternative register when
 // that happens, and the vector below provides a list of potential candidates
 std::vector <reg_id_t> INSTRUMENTATION_REGISTERS = {
-    // DR_REG_RDI,
     DR_REG_R10,
     DR_REG_R11,
     DR_REG_R12,
     DR_REG_R13,
     DR_REG_R9,
-    DR_REG_R8
+    DR_REG_R8,
+    DR_REG_RAX,
+    DR_REG_RCX,
+    DR_REG_RDX,
 };
 
 std::vector <instr_t*> instructions_to_remove;
@@ -231,11 +233,6 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
 
     instr_set_translation(enqueue_instr, instr_get_app_pc(trigger));
 
-    if (inRegSet(bitmask, queue_ptr_reg)) {
-        instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
-    }
-    instrlist_meta_preinsert(bb, trigger, spill_tmp_reg_instr);
-
     instrlist_postinsert(bb, trigger, restore_tmp_reg_instr);
     if (inRegSet(bitmask, queue_ptr_reg)) {
         instrlist_postinsert(bb, trigger, restore_queue_reg_instr);
@@ -245,6 +242,11 @@ void main_cmp_instr_handler(JANUS_CONTEXT)
     instrlist_postinsert(bb, trigger, enqueue_instr);
     instrlist_postinsert(bb, trigger, tmp_load_instr);
     instrlist_postinsert(bb, trigger, load_enqueue_ptr_instr);
+
+    instrlist_meta_postinsert(bb, trigger, spill_tmp_reg_instr);
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_postinsert(bb, trigger, spill_queue_reg_instr);
+    }
 
     #ifdef INSERT_DEBUG_CLEAN_CALLS
     //dr_insert_clean_call(drcontext, bb, enqueue_instr1, enqueue_debug, 0, 1, src1);
@@ -333,6 +335,16 @@ void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue)
 
     opnd_t dequeue_location = make_mem_opnd_for_reg_from_register(reg, queue_ptr_reg);
 
+    const pid_t tid = dr_get_thread_id(drcontext);
+    AppThread *curr_thread = app_threads[tid];
+    int64_t *spill_slot = &(curr_thread->spill_slots[QUEUE_PTR_SPILL_SLOT_INDEX]);
+    instr_t *spill_queue_reg_instr = create_spill_reg_instr(drcontext, queue_ptr_reg, spill_slot);
+    instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, queue_ptr_reg, spill_slot);
+
+    if (inRegSet(bitmask, queue_ptr_reg)) {
+        instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
+    }
+
     if (any_src_mem_ref) {
         // dequeue and load to reg, remove instruction
         #ifdef PRINT_INSTRUCTION_INSTRUMENTATION_INFO
@@ -401,16 +413,8 @@ void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue)
         #endif
     }
 
-    // TODO: optimise this
-    const pid_t tid = dr_get_thread_id(drcontext);
-    AppThread *curr_thread = app_threads[tid];
-    int64_t *spill_slot = &(curr_thread->spill_slots[QUEUE_PTR_SPILL_SLOT_INDEX]);
-    instr_t *spill_queue_reg_instr = create_spill_reg_instr(drcontext, queue_ptr_reg, spill_slot);
-    instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, queue_ptr_reg, spill_slot);
-
     if (inRegSet(bitmask, queue_ptr_reg)) {
-        instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
-        instrlist_meta_postinsert(bb, store_queue_reg_instr, restore_queue_reg_instr);
+        instrlist_meta_postinsert(bb, trigger, spill_queue_reg_instr);
     }
 }
 
@@ -434,8 +438,7 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     assert(!(opnd_is_memory_reference(src1) && opnd_is_memory_reference(src2)));
 
     // "free_registers" below refer to registers not used in the trigger instruction
-    std::vector<reg_id_t> free_registers = get_free_registers(INSTRUMENTATION_REGISTERS, trigger);
-    reg_id_t queue_ptr_reg = free_registers[0];
+    reg_id_t queue_ptr_reg = get_free_registers(INSTRUMENTATION_REGISTERS, trigger)[0];
 
     opnd_t mem_opnd = opnd_is_memory_reference(src1) ? src1 : src2;
     opnd_size_t mem_opnd_size = opnd_get_size(mem_opnd);

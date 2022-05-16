@@ -349,6 +349,15 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
         }
 
         //assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
+        if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z2;
+        }
+        if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z2;
+        }
+        if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z2;
+        }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2;
         }
@@ -403,6 +412,15 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
         }
 
+        if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z1;
+        }
+        if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z1;
+        }
+        if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
+            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z1;
+        }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
             assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1;
