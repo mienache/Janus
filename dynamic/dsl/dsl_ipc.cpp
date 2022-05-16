@@ -441,22 +441,17 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     opnd_size_t mem_opnd_size = opnd_get_size(mem_opnd);
 
     opnd_t dequeue_location = make_opnd_mem_from_reg_and_size(queue_ptr_reg, mem_opnd_size);
-
-    reg_id_t tmp_reg = reg_resize_to_opsz(free_registers[1], mem_opnd_size);
-    instr_t *dequeue_instr = XINST_CREATE_load(drcontext, opnd_create_reg(tmp_reg), dequeue_location);
-    
     if (opnd_is_memory_reference(src1)) {
-        src1 = opnd_create_reg(tmp_reg);
+        src1 = dequeue_location;
     }
     else {
-        src2 = opnd_create_reg(tmp_reg);
+        src2 = dequeue_location;
     }
-    instr_t *new_cmp = XINST_CREATE_cmp(drcontext, src1, src2);
+    instr_t *new_cmp_instr = XINST_CREATE_cmp(drcontext, src1, src2);
 
     instr_t *prev_trigger = instr_get_prev_app(trigger);
     if (prev_trigger) {
-        // instr_set_translation(new_cmp, instr_get_app_pc(prev_trigger));
-        instr_set_translation(dequeue_instr, instr_get_app_pc(prev_trigger));
+        instr_set_translation(new_cmp_instr, instr_get_app_pc(prev_trigger));
     }
 
 
@@ -486,22 +481,16 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
     instr_t *spill_queue_reg_instr = create_spill_reg_instr(drcontext, queue_ptr_reg, spill_slot1);
     instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, queue_ptr_reg, spill_slot1);
 
-    int64_t *spill_slot2 = &(curr_thread->spill_slots[TMP_REG_SPILL_SLOT_INDEX_1]);
-    instr_t *spill_tmp_reg_instr = create_spill_reg_instr(drcontext, tmp_reg, spill_slot2);
-    instr_t *restore_tmp_reg_instr = create_restore_reg_instr(drcontext, tmp_reg, spill_slot2);
 
     // Add dequeue and replace trigger with new cmp
     if (inRegSet(bitmask, queue_ptr_reg)) {
         instrlist_meta_preinsert(bb, trigger, spill_queue_reg_instr);
     }
-    instrlist_meta_preinsert(bb, trigger, spill_tmp_reg_instr);
     instrlist_preinsert(bb, trigger, load_dequeue_ptr_instr);
-    instrlist_preinsert(bb, trigger, dequeue_instr);
+    instrlist_preinsert(bb, trigger, new_cmp_instr);
     instrlist_preinsert(bb, trigger, increment_queue_reg_instr);
-    instrlist_preinsert(bb, trigger, new_cmp);
     instrlist_preinsert(bb, trigger, store_queue_reg_instr);
 
-    instrlist_meta_postinsert(bb, trigger, restore_tmp_reg_instr);
     if (inRegSet(bitmask, queue_ptr_reg)) {
         instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
     }
