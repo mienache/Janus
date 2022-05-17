@@ -62,6 +62,9 @@ class AppThread {
     const int num_spill_slots;
     int64_t spill_slots[NUM_THREAD_SPILL_SLOTS];
 
+    reg_id_t curr_queue_reg;
+    bool instrumented_start_and_end_of_bb;
+
     AppThread(pid_t pid_);
 };
 

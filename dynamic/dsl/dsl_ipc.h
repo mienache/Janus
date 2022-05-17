@@ -47,8 +47,9 @@ struct CometQueue {
     std::atomic<bool> is_z2_free;
     std::atomic<pid_t> last_thread_changed;
     uint64_t bytes_per_zone;
+    std::atomic<bool> bb_reg_prom_opt;
 
-    CometQueue(size_t num_items_per_zone)
+    CometQueue(size_t num_items_per_zone, bool reg_prom_optimisation)
     {
         std::cout<< "Num items per zone: " << num_items_per_zone << std::endl;
 
@@ -106,6 +107,10 @@ struct CometQueue {
 
         std::cout << "Enqueue pointer allocated at: " << (void*) &enqueue_pointer << std::endl;
         std::cout << "Dequeue pointer allocated at: " << (void*) &dequeue_pointer << std::endl;
+
+        bb_reg_prom_opt = reg_prom_optimisation;
+
+        std::cout << "BB register promotion optimisation: " << bb_reg_prom_opt << std::endl;
     }
 
 };

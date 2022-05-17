@@ -2,9 +2,11 @@
 #include <fstream>
 #include <cassert>
 #include <vector>
+#include <algorithm>
 
 #include "dr_api.h"
 #include "util.h"
+
 using namespace std;
 /*
     -1: 0 destination, 1 source
@@ -543,4 +545,29 @@ bool opnd_is_memory_register(opnd_t o)
         opnd_get_reg(o) == DR_REG_RSP
      || opnd_get_reg(o) == DR_REG_RBP
     );
+}
+
+std::vector<reg_id_t> get_free_registers_for_bb(std::vector<reg_id_t> wanted_registers, instrlist_t* bb)
+{
+    std::vector<reg_id_t> free_registers = wanted_registers;
+    for (instr_t *curr_instr = instrlist_first(bb); curr_instr != NULL; curr_instr = instr_get_next(curr_instr)) {
+        std::vector<reg_id_t> curr_free_registers = get_free_registers(wanted_registers, curr_instr);
+
+        std::vector<int> indices_to_be_removed;
+        for (int i = 0; i < free_registers.size(); ++i) {
+            if (
+                std::find(curr_free_registers.begin(), curr_free_registers.end(), free_registers[i]) ==
+                curr_free_registers.end()
+            ) {
+                indices_to_be_removed.push_back(i);
+            }
+        }
+
+        for (int i = indices_to_be_removed.size() - 1; i >= 0; --i) {
+            int index = indices_to_be_removed[i];
+            free_registers.erase(free_registers.begin() + index);
+        }
+    }
+
+    return free_registers;
 }

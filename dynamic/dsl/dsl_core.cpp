@@ -149,7 +149,16 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     AppThread *curr_thread = app_threads[tid];
     curr_thread->curr_bb = bbAddr;
 
+    if (IPC_QUEUE_2->bb_reg_prom_opt) {
+        curr_thread->instrumented_start_and_end_of_bb = 0;
+        std::vector<reg_id_t> free_registers = get_free_registers_for_bb(INSTRUMENTATION_REGISTERS, bb);
+        curr_thread->curr_queue_reg = (
+            free_registers.size() ? get_free_registers_for_bb(INSTRUMENTATION_REGISTERS, bb)[0] : DR_REG_NULL
+        );
+    }
+
     if (curr_thread->bb_to_required_rules.find(bbAddr) != curr_thread->bb_to_required_rules.end()) {
+        assert (false);
         for (auto fromBBAddr : curr_thread->bb_to_required_rules[bbAddr])  {
             std::cout << "Forwarding rules from " << (void*) fromBBAddr << " to " << (void*) bbAddr << std::endl;
             copy_rules_to_new_bb(bbAddr, fromBBAddr);

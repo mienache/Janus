@@ -120,6 +120,10 @@ opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size);
 // Check if the specified operand `o` is a memory register (RBP or RSP on x86-64)
 bool opnd_is_memory_register(opnd_t o);
 
+// Given a target basic block and a list of wanted registers, return those registers from the list
+// that are not used in the target basic block
+std::vector<reg_id_t> get_free_registers_for_bb(std::vector<reg_id_t> wanted_registers, instrlist_t* bb);
+
 #endif
 
 
