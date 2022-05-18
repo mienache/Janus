@@ -2,6 +2,7 @@
 #define __DSL_IPC__
 
 #include <atomic>
+#include <cassert>
 #include <iostream>
 #include <map>
 #include <vector>
@@ -48,8 +49,9 @@ struct CometQueue {
     std::atomic<pid_t> last_thread_changed;
     uint64_t bytes_per_zone;
     std::atomic<bool> bb_reg_prom_opt;
+    std::atomic<bool> addr_offset_fusion_opt;
 
-    CometQueue(size_t num_items_per_zone, bool reg_prom_optimisation)
+    CometQueue(size_t num_items_per_zone, bool reg_prom_optimisation, bool address_offset_fusion_optimisation)
     {
         std::cout<< "Num items per zone: " << num_items_per_zone << std::endl;
 
@@ -109,8 +111,13 @@ struct CometQueue {
         std::cout << "Dequeue pointer allocated at: " << (void*) &dequeue_pointer << std::endl;
 
         bb_reg_prom_opt = reg_prom_optimisation;
-
         std::cout << "BB register promotion optimisation: " << bb_reg_prom_opt << std::endl;
+
+        addr_offset_fusion_opt = address_offset_fusion_optimisation;
+        std::cout << "Address offset fusion optimisation: " << addr_offset_fusion_opt << std::endl;
+
+        // Can't do offset fusion without reg promotion
+        assert (!(!bb_reg_prom_opt && addr_offset_fusion_opt));
     }
 
 };
@@ -134,5 +141,7 @@ extern std::vector <reg_id_t> INSTRUMENTATION_REGISTERS;
 // the mappings from PC -> rule won't be valid anymore.
 extern std::vector <instr_t*> instructions_to_remove;
 
+void instrument_first_instr_for_reg_prom(void *drcontext, instrlist_t *bb);
+void instrument_last_instr_for_reg_prom(void *drcontext, instrlist_t *bb);
 
 #endif

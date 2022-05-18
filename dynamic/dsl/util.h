@@ -113,9 +113,18 @@ opnd_t make_mem_opnd_for_reg(reg_id_t reg, void *address);
 // (i.e., it uses the `address_reg` as the base and a 0 displacement)
 opnd_t make_mem_opnd_for_reg_from_register(reg_id_t reg, reg_id_t address_reg);
 
+// Given a register `reg`, an address register and a disposition, create a memory operand which references the address
+// held by the specified address register + `disp` and has the same size as the specified register `reg`.
+// (i.e., it uses the `address_reg` as the base and a `disp` displacement)
+opnd_t make_mem_opnd_for_reg_from_register_and_disp(reg_id_t reg, reg_id_t address_reg, int disp);
+
 // Given a register `reg` and a `size`, create a memory reference operand whose base register is the
 // specified register `reg` (and displacement is zero), and whose size is the specifid `size`.
 opnd_t make_opnd_mem_from_reg_and_size(reg_id_t reg, opnd_size_t size);
+
+// Given a register `reg`, a disp `disp` and a `size`, create a memory reference operand whose base register is the
+// specified register `reg` (and displacement is `disp`), and whose size is the specifid `size`.
+opnd_t make_opnd_mem_from_reg_disp_and_size(reg_id_t reg, int disp, opnd_size_t size);
 
 // Check if the specified operand `o` is a memory register (RBP or RSP on x86-64)
 bool opnd_is_memory_register(opnd_t o);

@@ -571,3 +571,39 @@ std::vector<reg_id_t> get_free_registers_for_bb(std::vector<reg_id_t> wanted_reg
 
     return free_registers;
 }
+
+opnd_t make_mem_opnd_for_reg_from_register_and_disp(reg_id_t reg, reg_id_t address_reg, int disp)
+{
+    if (reg_is_64bit(reg)) {
+        return OPND_CREATE_MEM64(address_reg, disp);
+    }
+
+    if (reg_is_32bit(reg)) {
+        return OPND_CREATE_MEM32(address_reg, disp);
+    }
+
+    if (reg_get_size(reg) == OPSZ_2) {
+        return OPND_CREATE_MEM16(address_reg, disp);
+    }
+
+    if (reg_is_simd(reg)) {
+        return opnd_create_base_disp(address_reg, DR_REG_NULL, 0, disp, reg_get_size(reg));
+    }
+    
+    return OPND_CREATE_MEM8(address_reg, disp);
+}
+
+opnd_t make_opnd_mem_from_reg_disp_and_size(reg_id_t reg, int disp, opnd_size_t size)
+{
+    if (size == OPSZ_8) {
+        return OPND_CREATE_MEM64(reg, disp);
+    }
+    else if (size == OPSZ_4) {
+        return OPND_CREATE_MEM32(reg, disp);
+    }
+    else if (size == OPSZ_2) {
+        return OPND_CREATE_MEM16(reg, disp);
+    }
+
+    return OPND_CREATE_MEM8(reg, disp);
+}

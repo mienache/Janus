@@ -64,6 +64,7 @@ class AppThread {
 
     reg_id_t curr_queue_reg;
     bool instrumented_start_and_end_of_bb;
+    int curr_disp;
 
     AppThread(pid_t pid_);
 };

@@ -24,11 +24,9 @@
 //#define PRINT_QUEUE_PTRS
 //#define PRINT_BB_TO_FILE
 
-// A cmp instruction can push 2 values into the restricted zone, hence error margin should be 2 x INCREMENT
-// INCREMENT is 16 when SIMD registers are supported
-const int ZONE_ERROR_MARGIN = 32;
-
 extern std::vector <instr_t*> instructions_to_remove;
+
+std::atomic<int> sigsegv_cnt;
 
 static dr_emit_flags_t
 event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating);
@@ -134,6 +132,8 @@ void exit_janus_thread(void *drcontext) {
     std::cout << "Deq ptr = " << IPC_QUEUE_2->dequeue_pointer << std::endl;
 
     exit_routine();
+
+    std::cout << "SIGSEGV_cnt = " << sigsegv_cnt << std::endl;
 }
 
 
@@ -155,6 +155,10 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         curr_thread->curr_queue_reg = (
             free_registers.size() ? get_free_registers_for_bb(INSTRUMENTATION_REGISTERS, bb)[0] : DR_REG_NULL
         );
+
+        if (IPC_QUEUE_2->addr_offset_fusion_opt) {
+            curr_thread->curr_disp = 0;
+        }
     }
 
     if (curr_thread->bb_to_required_rules.find(bbAddr) != curr_thread->bb_to_required_rules.end()) {
@@ -167,7 +171,6 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     //lookup in the hashtable to check if there is any rule attached to the block
     RRule *rule = get_static_rule(bbAddr);
-
     if (rule == NULL && instr_is_nop(instrlist_first_app(bb))) {
         // First instruction is a NOP - iterate until we find the first non-NOP.
         // We need this because the static analyser does not allow basic blocks to start with NOP
@@ -210,6 +213,11 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     instructions_to_remove.clear();
 
+
+    if (IPC_QUEUE_2->bb_reg_prom_opt) {
+        instrument_first_instr_for_reg_prom(drcontext, bb);
+    }
+
     do {
         // The while below is needed because a linked list of rules might belong to different
         // basic blocks if an original basic block was split. This is because the PC of some
@@ -237,6 +245,10 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         //This basic block may be annotated with more rules
         rule = rule->next;
     }while(rule);
+
+    if (IPC_QUEUE_2->bb_reg_prom_opt) {
+        instrument_last_instr_for_reg_prom(drcontext, bb);
+    }
 
     if (curr_thread->threadRole == ThreadRole::CHECKER) {
         for (auto i: instructions_to_remove) {
@@ -304,11 +316,18 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     std::cout << tid << " Last thread changed: " << IPC_QUEUE_2->last_thread_changed << std::endl;
     #endif
 
+    // A cmp instruction can push 2 values into the restricted zone, hence error margin should be 2 x INCREMENT
+    // INCREMENT is 16 when SIMD registers are supported
+    int ZONE_ERROR_MARGIN = 32;
+
     void *error_address = siginfo->access_address;
     if (error_address < IPC_QUEUE_2->r1 || error_address > IPC_QUEUE_2->r2 + ZONE_ERROR_MARGIN) {
         std::cout << "Non-comet ERROR " << std::endl;
         return DR_SIGNAL_DELIVER;
     }
+
+    // TODO: think about this
+    ZONE_ERROR_MARGIN += 1000;
         
     /*
     siginfo->raw_mcontext->pc = (void*) spinlock;
@@ -321,6 +340,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
         curr_thread->bb_to_required_rules[pc].insert(curr_thread->curr_bb);
     }
 
+    assert (error_address == IPC_QUEUE_2->r1 || error_address == IPC_QUEUE_2->r2);
 
     if (error_address < IPC_QUEUE_2->z2) {
         #ifdef PRINT_SIG_HANDLER_INFO
@@ -332,7 +352,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             // TODO: investigate if usleep is needed indeed.
             // This was added because on some runs the execution does not finish and the thread
             // keeps waiting in the while loop even though the condition is modified by the other thread
-            usleep(500);
+            //usleep(500);
             //return DR_SIGNAL_SUPPRESS;
         }
 
@@ -359,28 +379,36 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
 
         //assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
         if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rax;
+            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rcx;
+            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rdx;
+            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r10;
+            siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r11;
+            siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r12;
+            siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
-            siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r13;
+            siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z2 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
-            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z2;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rdi;
+            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z2 - disp_offset;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO
@@ -394,7 +422,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
         #endif
         IPC_QUEUE_2->is_z2_free = 1;
         while (!IPC_QUEUE_2->is_z1_free || IPC_QUEUE_2->last_thread_changed == tid) {
-            usleep(500);
+            //usleep(500);
             //sleep(2);
             //return DR_SIGNAL_SUPPRESS;
         }
@@ -422,29 +450,36 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
         }
 
         if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rax;
+            siginfo->raw_mcontext->rax = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rcx;
+            siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rdx;
+            siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
-            siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r10;
+            siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t)error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r11;
+            siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r12;
+            siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->r13;
+            siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z1 - disp_offset;
         }
         if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z1;
+            const int disp_offset = error_address - siginfo->raw_mcontext->rdi;
+            siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z1 - disp_offset;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO
@@ -457,6 +492,8 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     std::cout << tid << " Z2 free: " << IPC_QUEUE_2->is_z2_free<< std::endl;
     std::cout << tid << " IPC_POINTERS: " << IPC_QUEUE_2->enqueue_pointer << " | " << IPC_QUEUE_2->dequeue_pointer << std::endl;
     #endif
+
+    ++sigsegv_cnt;
 
     return DR_SIGNAL_SUPPRESS;
 }
