@@ -32,7 +32,7 @@ fi
 $JANUSBIN/analyze -c $binfile
 
 # To run:
-$TOOLDIR/bin64/drrun -ops "-opt_cleancall 0 -thread_private -disable_traces -reachable_heap" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*
+taskset --cpu-list 1-2 $TOOLDIR/bin64/drrun -ops "-opt_cleancall 0 -thread_private -disable_traces -reachable_heap" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*
 
 # To run on only one CPU:
 #taskset --cpu-list 1 $TOOLDIR/bin64/drrun -ops "-opt_cleancall 0 -thread_private" -c $JANUSLIB/libjdsl.so @$hintfile @1 @0 -- $binfile $*

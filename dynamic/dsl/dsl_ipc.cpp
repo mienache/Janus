@@ -21,9 +21,16 @@ CometQueue *COMET_QUEUE;
 
 /*--- IPC Declarations Finish ---*/
 
-const int DEFAULT_QUEUE_SIZE = 100000000;
+bool REG_PROM_OPT = 1;
+bool OFFSET_FUSION_OPT = 0;
+
+//const int DEFAULT_QUEUE_SIZE = 1e8;
+//const int DEFAULT_QUEUE_SIZE = 1e7;
 //const int DEFAULT_QUEUE_SIZE = 2500000;
+//const int DEFAULT_QUEUE_SIZE = 5 * (1e5);
+const int DEFAULT_QUEUE_SIZE = 4 * (1e5);
 //const int DEFAULT_QUEUE_SIZE = 2 * (1e5);
+//const int DEFAULT_QUEUE_SIZE = 1e5;
 //const int DEFAULT_QUEUE_SIZE = 50000;
 //const int DEFAULT_QUEUE_SIZE = 5000;
 
@@ -81,8 +88,8 @@ CometQueue* initialise_comet_queue()
     std::cout << "Creating Comet queue" << std::endl;
 
     std::cout << "Increment = " << INCREMENT << std::endl;
-    bool reg_prom_opt = 1;
-    bool address_offset_fusion_opt = 1;
+    bool reg_prom_opt = REG_PROM_OPT;
+    bool address_offset_fusion_opt = OFFSET_FUSION_OPT;
     return new CometQueue(DEFAULT_QUEUE_SIZE, reg_prom_opt, address_offset_fusion_opt);
 }
 

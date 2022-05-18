@@ -141,6 +141,11 @@ void exit_janus_thread(void *drcontext) {
 static dr_emit_flags_t
 event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating)
 {
+
+    if (translating) {
+        return DR_EMIT_DEFAULT;
+    }
+
     RuleOp rule_opcode;
     //get current basic block starting address
     PCAddress bbAddr = (PCAddress)dr_fragment_app_pc(tag);
@@ -327,7 +332,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     }
 
     // TODO: think about this
-    ZONE_ERROR_MARGIN += 1000;
+    ZONE_ERROR_MARGIN += 4000;
         
     /*
     siginfo->raw_mcontext->pc = (void*) spinlock;
@@ -342,6 +347,9 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
 
     assert (error_address == IPC_QUEUE_2->r1 || error_address == IPC_QUEUE_2->r2);
 
+
+    int disp_offset = -1;
+    int num_updated_registers = 0;
     if (error_address < IPC_QUEUE_2->z2) {
         #ifdef PRINT_SIG_HANDLER_INFO
         std::cout << tid << " trying to enter Z2" << std::endl;
@@ -367,48 +375,56 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             #ifdef PRINT_SIG_HANDLER_INFO
             std::cout << tid << " Setting enqueue pointer to z2" << std::endl;
             #endif
-            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z2;
-            memset(IPC_QUEUE_2->z2, 0, IPC_QUEUE_2->bytes_per_zone);
+            //IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z2;
+            //memset(IPC_QUEUE_2->z2, 0, IPC_QUEUE_2->bytes_per_zone);
         }
         else {
             #ifdef PRINT_SIG_HANDLER_INFO
             std::cout << tid << "Setting dequeue pointer to z2" << std::endl;
             #endif
-            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
+            //IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z2;
         }
 
         //assert (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN);
         if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rax;
+            disp_offset = error_address - siginfo->raw_mcontext->rax;
             siginfo->raw_mcontext->rax = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rcx;
+            disp_offset = error_address - siginfo->raw_mcontext->rcx;
             siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rdx;
+            disp_offset = error_address - siginfo->raw_mcontext->rdx;
             siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r10;
+            disp_offset = error_address - siginfo->raw_mcontext->r10;
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r11;
+            disp_offset = error_address - siginfo->raw_mcontext->r11;
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r12;
+            disp_offset = error_address - siginfo->raw_mcontext->r12;
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
-            const int disp_offset = error_address - siginfo->raw_mcontext->r13;
+            disp_offset = error_address - siginfo->raw_mcontext->r13;
             siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN){
-            const int disp_offset = error_address - siginfo->raw_mcontext->rdi;
+            disp_offset = error_address - siginfo->raw_mcontext->rdi;
             siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z2 - disp_offset;
+            ++num_updated_registers;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO
@@ -439,53 +455,65 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
             #ifdef PRINT_SIG_HANDLER_INFO
             std::cout << tid << " Setting enqueue pointer to z1" << std::endl;
             #endif
-            IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
-            memset(IPC_QUEUE_2->z1, 0, IPC_QUEUE_2->bytes_per_zone);
+            // IPC_QUEUE_2->enqueue_pointer = IPC_QUEUE_2->z1;
+            //memset(IPC_QUEUE_2->z1, 0, IPC_QUEUE_2->bytes_per_zone);
         }
         else {
             #ifdef PRINT_SIG_HANDLER_INFO
             std::cout << tid << " Setting dequeue pointer to z1" << std::endl;
             #endif
-            IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
+            // IPC_QUEUE_2->dequeue_pointer = IPC_QUEUE_2->z1;
         }
 
         if (llabs(siginfo->raw_mcontext->rax - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rax;
+            disp_offset = error_address - siginfo->raw_mcontext->rax;
             siginfo->raw_mcontext->rax = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rcx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rcx;
+            disp_offset = error_address - siginfo->raw_mcontext->rcx;
             siginfo->raw_mcontext->rcx = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rdx - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rdx;
+            disp_offset = error_address - siginfo->raw_mcontext->rdx;
             siginfo->raw_mcontext->rdx = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r10 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r10;
+            disp_offset = error_address - siginfo->raw_mcontext->r10;
             siginfo->raw_mcontext->r10 = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r11 - (uint64_t)error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r11;
+            disp_offset = error_address - siginfo->raw_mcontext->r11;
             siginfo->raw_mcontext->r11 = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r12 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r12;
+            disp_offset = error_address - siginfo->raw_mcontext->r12;
             siginfo->raw_mcontext->r12 = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->r13 - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->r13;
+            disp_offset = error_address - siginfo->raw_mcontext->r13;
             siginfo->raw_mcontext->r13 = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
         if (llabs(siginfo->raw_mcontext->rdi - (uint64_t) error_address) <= ZONE_ERROR_MARGIN) {
-            const int disp_offset = error_address - siginfo->raw_mcontext->rdi;
+            disp_offset = error_address - siginfo->raw_mcontext->rdi;
             siginfo->raw_mcontext->rdi = IPC_QUEUE_2->z1 - disp_offset;
+            ++num_updated_registers;
         }
 
         #ifdef PRINT_SIG_HANDLER_INFO
         std::cout << "Thread " << tid << " finished spinlocking and entering Z1" << std::endl;
         #endif
+
     }
+
+    assert (disp_offset <= 4000);
+    assert (num_updated_registers == 1);
 
     #ifdef PRINT_SIG_HANDLER_INFO
     std::cout << tid << " Z1 free: " << IPC_QUEUE_2->is_z1_free<< std::endl;
