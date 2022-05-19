@@ -141,7 +141,6 @@ void exit_janus_thread(void *drcontext) {
 static dr_emit_flags_t
 event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating)
 {
-
     if (translating) {
         return DR_EMIT_DEFAULT;
     }
@@ -307,6 +306,7 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
 
     if (siginfo->sig != SIGSEGV) {
         std::cout << "NON SIGSEGV signal found" << std::endl;
+        dr_abort();
         return DR_SIGNAL_DELIVER;
     }
 

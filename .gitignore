@@ -7,3 +7,6 @@ html/*
 docs/*
 *.make
 *.cmake
+comet_benchmark/*
+all_output/*
+comet_evaluator/expr_input/*.txt

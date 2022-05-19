@@ -23,13 +23,13 @@ CometQueue *COMET_QUEUE;
 
 bool REG_PROM_OPT = 1;
 bool OFFSET_FUSION_OPT = 1;
-bool DYNAMIC_OFFSET_OPT = 1;
+bool DYNAMIC_OFFSET_OPT = 0;
 
 //const int DEFAULT_QUEUE_SIZE = 1e8;
 //const int DEFAULT_QUEUE_SIZE = 1e7;
 //const int DEFAULT_QUEUE_SIZE = 2500000;
 //const int DEFAULT_QUEUE_SIZE = 5 * (1e5);
-const int DEFAULT_QUEUE_SIZE = 4 * (1e5);
+const int DEFAULT_QUEUE_SIZE = 1375744;
 //const int DEFAULT_QUEUE_SIZE = 2 * (1e5);
 //const int DEFAULT_QUEUE_SIZE = 1e5;
 //const int DEFAULT_QUEUE_SIZE = 50000;
