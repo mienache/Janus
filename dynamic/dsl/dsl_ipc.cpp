@@ -22,7 +22,8 @@ CometQueue *COMET_QUEUE;
 /*--- IPC Declarations Finish ---*/
 
 bool REG_PROM_OPT = 1;
-bool OFFSET_FUSION_OPT = 0;
+bool OFFSET_FUSION_OPT = 1;
+bool DYNAMIC_OFFSET_OPT = 1;
 
 //const int DEFAULT_QUEUE_SIZE = 1e8;
 //const int DEFAULT_QUEUE_SIZE = 1e7;
@@ -74,6 +75,8 @@ void reg_prom_checker_handler(JANUS_CONTEXT, CometQueue *queue);
 void reg_prom_main_cmp_instr_handler(JANUS_CONTEXT);
 void reg_prom_checker_cmp_instr_handler(JANUS_CONTEXT);
 void unexpected_dequeue();
+void adjust_curr_disp(AppThread *curr_thread, opnd_size_t opnd_size);
+int get_dynamic_increment(opnd_size_t opnd_size);
 
 
 BasicQueue* initialise_queue()
@@ -88,9 +91,7 @@ CometQueue* initialise_comet_queue()
     std::cout << "Creating Comet queue" << std::endl;
 
     std::cout << "Increment = " << INCREMENT << std::endl;
-    bool reg_prom_opt = REG_PROM_OPT;
-    bool address_offset_fusion_opt = OFFSET_FUSION_OPT;
-    return new CometQueue(DEFAULT_QUEUE_SIZE, reg_prom_opt, address_offset_fusion_opt);
+    return new CometQueue(DEFAULT_QUEUE_SIZE, REG_PROM_OPT, OFFSET_FUSION_OPT, DYNAMIC_OFFSET_OPT);
 }
 
 void insert_instrs_for_new_queue_reg(void *drcontext, instrlist_t *bb, instr_t* trigger, reg_id_t new_queue_ptr_reg);
@@ -589,6 +590,13 @@ void instrument_last_instr_for_reg_prom(void*drcontext, instrlist_t *bb)
     instr_t *last_instr = instrlist_last_app(bb);
 
     if (IPC_QUEUE_2->addr_offset_fusion_opt && curr_thread->curr_disp) {
+        if (IPC_QUEUE_2->dynamic_increment_opt) {
+            // std::cout << curr_thread->pid << " - cur_disp before modifying = " << curr_thread->curr_disp << std::endl;
+            adjust_curr_disp(curr_thread, opnd_size_from_bytes(INCREMENT));
+        }
+
+        // std::cout << curr_thread->pid << " - curr_disp at end of block: " << curr_thread->curr_disp << std::endl;
+
         instr_t *adjust_queue_reg = XINST_CREATE_add(
             drcontext,
             opnd_create_reg(queue_ptr_reg),
@@ -666,13 +674,16 @@ void reg_prom_main_handler(JANUS_CONTEXT, CometQueue *queue)
     AppThread *curr_thread = app_threads[tid];
     const reg_id_t new_queue_ptr_reg = curr_thread->curr_queue_reg;
 
+    if (IPC_QUEUE_2->dynamic_increment_opt) {
+        adjust_curr_disp(curr_thread, reg_get_size(reg));
+    }
     opnd_t enqueue_location = (
         IPC_QUEUE_2->addr_offset_fusion_opt ? 
         make_mem_opnd_for_reg_from_register_and_disp(reg, new_queue_ptr_reg, curr_thread->curr_disp) :
         make_mem_opnd_for_reg_from_register(reg, new_queue_ptr_reg)
     );
     if (IPC_QUEUE_2->addr_offset_fusion_opt) {
-        curr_thread->curr_disp += INCREMENT;
+        curr_thread->curr_disp += get_dynamic_increment(reg_get_size(reg));
     }
 
     instr_t *enqueue_instr;
@@ -730,13 +741,19 @@ void reg_prom_main_cmp_instr_handler(JANUS_CONTEXT)
 
     opnd_t mem_opnd = opnd_is_memory_reference(src1) ? src1 : src2;
     opnd_size_t mem_opnd_size = opnd_get_size(mem_opnd);
+
+    if (IPC_QUEUE_2->dynamic_increment_opt) {
+        adjust_curr_disp(curr_thread, mem_opnd_size);
+    }
+
     opnd_t enqueue_location = (
         IPC_QUEUE_2->addr_offset_fusion_opt ? 
         make_opnd_mem_from_reg_disp_and_size(new_queue_ptr_reg, curr_thread->curr_disp, mem_opnd_size) :
         make_opnd_mem_from_reg_and_size(new_queue_ptr_reg, mem_opnd_size)
     );
+
     if (IPC_QUEUE_2->addr_offset_fusion_opt) {
-        curr_thread->curr_disp += INCREMENT;
+        curr_thread->curr_disp += get_dynamic_increment(mem_opnd_size);
     }
 
     std::vector<reg_id_t> free_registers = get_free_registers(INSTRUMENTATION_REGISTERS, trigger);
@@ -847,6 +864,9 @@ void reg_prom_checker_handler(JANUS_CONTEXT, CometQueue *queue)
         OPND_CREATE_INT32(INCREMENT)
     );
 
+    if (IPC_QUEUE_2->dynamic_increment_opt) {
+        adjust_curr_disp(curr_thread, reg_get_size(reg));
+    }
     opnd_t dequeue_location = (
         IPC_QUEUE_2->addr_offset_fusion_opt ? 
         make_mem_opnd_for_reg_from_register_and_disp(reg, new_queue_ptr_reg, curr_thread->curr_disp) :
@@ -926,7 +946,7 @@ void reg_prom_checker_handler(JANUS_CONTEXT, CometQueue *queue)
     }
 
     if (IPC_QUEUE_2->addr_offset_fusion_opt) {
-        curr_thread->curr_disp += INCREMENT;
+        curr_thread->curr_disp += get_dynamic_increment(reg_get_size(reg));
     }
 }
 
@@ -955,6 +975,9 @@ void reg_prom_checker_cmp_instr_handler(JANUS_CONTEXT)
 
     opnd_t mem_opnd = opnd_is_memory_reference(src1) ? src1 : src2;
     opnd_size_t mem_opnd_size = opnd_get_size(mem_opnd);
+    if (IPC_QUEUE_2->dynamic_increment_opt) {
+        adjust_curr_disp(curr_thread, mem_opnd_size);
+    }
 
     opnd_t dequeue_location = (
         IPC_QUEUE_2->addr_offset_fusion_opt ? 
@@ -962,7 +985,7 @@ void reg_prom_checker_cmp_instr_handler(JANUS_CONTEXT)
         make_opnd_mem_from_reg_and_size(new_queue_ptr_reg, mem_opnd_size)
     );
     if (IPC_QUEUE_2->addr_offset_fusion_opt) {
-        curr_thread->curr_disp += INCREMENT;
+        curr_thread->curr_disp += get_dynamic_increment(mem_opnd_size);
     }
 
     if (opnd_is_memory_reference(src1)) {
@@ -1000,4 +1023,19 @@ void reg_prom_checker_cmp_instr_handler(JANUS_CONTEXT)
     #endif
 
     instructions_to_remove.push_back(trigger);
+}
+
+
+void adjust_curr_disp(AppThread *curr_thread, opnd_size_t opnd_size)
+{
+    const int remainder = curr_thread->curr_disp % opnd_size_in_bytes(opnd_size);
+    if (remainder) {
+        const int required_offest = opnd_size_in_bytes(opnd_size) - remainder;
+        curr_thread->curr_disp += required_offest;
+    }
+}
+
+int get_dynamic_increment(opnd_size_t opnd_size)
+{
+    return IPC_QUEUE_2->dynamic_increment_opt ? opnd_size_in_bytes(opnd_size) : INCREMENT;
 }

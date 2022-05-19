@@ -50,8 +50,14 @@ struct CometQueue {
     uint64_t bytes_per_zone;
     std::atomic<bool> bb_reg_prom_opt;
     std::atomic<bool> addr_offset_fusion_opt;
+    std::atomic<bool> dynamic_increment_opt;
 
-    CometQueue(size_t num_items_per_zone, bool reg_prom_optimisation, bool address_offset_fusion_optimisation)
+    CometQueue(
+        size_t num_items_per_zone,
+        bool reg_prom_optimisation,
+        bool address_offset_fusion_optimisation,
+        bool dynamic_increment_optimisation
+    )
     {
         std::cout<< "Num items per zone: " << num_items_per_zone << std::endl;
 
@@ -116,8 +122,14 @@ struct CometQueue {
         addr_offset_fusion_opt = address_offset_fusion_optimisation;
         std::cout << "Address offset fusion optimisation: " << addr_offset_fusion_opt << std::endl;
 
+        dynamic_increment_opt = dynamic_increment_optimisation;
+        std::cout << "Dynamic increment optimisation: " << dynamic_increment_optimisation << std::endl;
+
         // Can't do offset fusion without reg promotion
         assert (!(!bb_reg_prom_opt && addr_offset_fusion_opt));
+
+        // Can't do dynamic increment without offset fusion
+        assert (!(!addr_offset_fusion_opt && dynamic_increment_opt));
     }
 
 };
