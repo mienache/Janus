@@ -328,7 +328,8 @@ dr_signal_action_t signal_handler(void *drcontext, dr_siginfo_t *siginfo)
     void *error_address = siginfo->access_address;
     if (error_address < IPC_QUEUE_2->r1 || error_address > IPC_QUEUE_2->r2 + ZONE_ERROR_MARGIN) {
         std::cout << "Non-comet ERROR " << std::endl;
-        return DR_SIGNAL_DELIVER;
+        dr_abort();
+        // return DR_SIGNAL_DELIVER;
     }
 
     // TODO: think about this

@@ -539,7 +539,7 @@ void unexpected_dequeue()
 {
     std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
     // Print the message more times in case it gets lost in the STD operations
-    for (int i = 1; i <= 5; ++i) {
+    for (int i = 1; i <= 7; ++i) {
         std::cout << "---->ERROR: dequeue returned unexpected value" << std::endl;
     }
 }
