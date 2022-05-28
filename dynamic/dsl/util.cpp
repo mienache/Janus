@@ -607,3 +607,34 @@ opnd_t make_opnd_mem_from_reg_disp_and_size(reg_id_t reg, int disp, opnd_size_t 
 
     return OPND_CREATE_MEM8(reg, disp);
 }
+
+int get_num_instr_with_reg_dsts(instrlist_t *bb)
+{
+    int cnt = 0;
+    instr_t *i = instrlist_first(bb);
+    while (i) {
+        if (instr_num_dsts(i) && opnd_is_reg(instr_get_dst(i, 0))) {
+            ++cnt;
+        }
+        i = instr_get_next(i);
+    }
+
+    return cnt;
+}
+
+int get_instr_with_reg_dsts_at_idx(instrlist_t *bb, int index)
+{
+    instr_t *i = instrlist_first(bb);
+
+    while (index) {
+        if (instr_num_dsts(i) && opnd_is_reg(instr_get_dst(i, 0))) {
+            --index;
+        }
+
+        if (index) {
+            i = instr_get_next(i);
+        }
+    }
+
+    return i;
+}

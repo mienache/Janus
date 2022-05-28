@@ -1,6 +1,7 @@
 set(DSL_SRCS
 	dsl_core.cpp
 	dsl_debug_utilities.cpp
+	dsl_error_insertion.cpp
 	dsl_handler.cpp
 	dsl_ipc.cpp
 	dsl_thread_manager.cpp

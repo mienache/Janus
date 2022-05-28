@@ -133,6 +133,15 @@ bool opnd_is_memory_register(opnd_t o);
 // that are not used in the target basic block
 std::vector<reg_id_t> get_free_registers_for_bb(std::vector<reg_id_t> wanted_registers, instrlist_t* bb);
 
+// Given a basic block, returns the number of instructions that have the destination as a register
+int get_num_instr_with_reg_dsts(instrlist_t *bb);
+
+// Given a basic block, returns the instruction that has the destination as a register
+// and is placed at `index` (among only the insturctions that have the destination as register)
+// To be used in conjunction with `get_num_instr_with_reg_dsts`
+int get_instr_with_reg_dsts_at_idx(instrlist_t *bb, int index);
+
+
 #endif
 
 

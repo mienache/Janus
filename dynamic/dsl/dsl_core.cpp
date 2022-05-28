@@ -6,13 +6,16 @@
 #include <ucontext.h>
 
 #include <cassert>
+#include <chrono>
 #include <cstring>
 #include <iostream>
+#include <random>
 #include <vector>
 #include <cstdlib>
 
 #include "dsl_core.h"
 #include "dsl_debug_utilities.h"
+#include "dsl_error_insertion.h"
 #include "dsl_handler.h"
 #include "dsl_ipc.h"
 #include "dsl_thread_manager.h"
@@ -20,9 +23,9 @@
 #include "handler.h"
 
 //#define PRINT_SIG_HANDLER_INFO
-//#define PRINT_PROCESSING_BASIC_BLOCK
+#define PRINT_PROCESSING_BASIC_BLOCK
 //#define PRINT_QUEUE_PTRS
-//#define PRINT_BB_TO_FILE
+#define PRINT_BB_TO_FILE
 
 extern std::vector <instr_t*> instructions_to_remove;
 
@@ -92,12 +95,15 @@ void new_janus_thread(void *drcontext) {
     std::cout << "The new Janus TID: " << dr_get_thread_id(drcontext) << std::endl;
 
 /*--- Janus Thread Init Start ---*/
-
     if (!main_thread) {
         // If it is the first thread, register it as the main thread
         std::cout << "Registering MAIN thread" << std::endl;
         main_thread = register_thread("main", drcontext);
         IPC_QUEUE_2->last_thread_changed = main_thread->pid;
+
+        ERRONEOUS_THREAD_ROLE = gen_thread_with_error();
+        BB_WITH_ERROR = gen_bb_with_error();
+
     }
     else {
         // Otherwise register as checker thread
@@ -119,9 +125,16 @@ void exit_janus_thread(void *drcontext) {
 
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         std::cout << "MAIN thread leaving." << std::endl;
+
+        std::cout << "MAIN NUM BBs = " << MAIN_BB_CNT << std::endl;
+        string tmp = (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN) ? "MAIN" : "CHECKER";
+        std::cout << "Thread with error " << tmp << std::endl;
+        std::cout << "BB " << BB_WITH_ERROR << std::endl;
     }
     else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "CHECKER thread leaving." << std::endl;
+        std::cout << "CHECKER NUM BBs = " << CHECKER_BB_CNT << std::endl;
+
         CHECKER_THREAD_FINISHED = 1;
     }
     else {
@@ -134,8 +147,14 @@ void exit_janus_thread(void *drcontext) {
     exit_routine();
 
     std::cout << "SIGSEGV_cnt = " << sigsegv_cnt << std::endl;
+    std::cout << "ERROR INSERTED = " << ERROR_INSERTED << std::endl;
 }
 
+void change_instr_bit(instr_t *i)
+{
+    byte* instr_bits = instr_get_raw_bits(i);
+    
+}
 
 /* Main execution loop: this will be executed at every initial encounter of new basic block */
 static dr_emit_flags_t
@@ -258,6 +277,19 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
         for (auto i: instructions_to_remove) {
             instrlist_remove(bb, i);
         }
+    }
+
+    if (curr_thread->threadRole == ThreadRole::MAIN) {
+        ++MAIN_BB_CNT;
+        if (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN && MAIN_BB_CNT == BB_WITH_ERROR) {
+            insert_error(drcontext, bb);
+        }
+    }
+    else {
+        if (ERRONEOUS_THREAD_ROLE == ThreadRole::CHECKER && CHECKER_BB_CNT == BB_WITH_ERROR) {
+            insert_error(drcontext, bb);
+        }
+        ++CHECKER_BB_CNT;
     }
 
     #ifdef PRINT_BB_TO_FILE
