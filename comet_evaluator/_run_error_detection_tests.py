@@ -6,18 +6,28 @@ from timeit import default_timer as timer
 import sys
 
 PATH_TO_BENCHMARK = "/janus_project/comet_benchmark/"
-PATH_TO_OUTPUT_DIR = "/janus_project/all_output_error_detection/"
+PATH_TO_OUTPUT_DIR = "/janus_project/all_output/"
 JDSL_RUN_PATH = "/janus_project/janus/jdsl_run"
 
 ERROR_DETECTION = "EC"
 
 MAIN_DIR = sys.argv[1]
-NUM_ITERATIONS = int(sys.argv[2])
+NUM_ITER = int(sys.argv[2])
 
 
 # Make sure "all_output" directory exists
 if not os.path.isdir(PATH_TO_OUTPUT_DIR):
     os.mkdir(PATH_TO_OUTPUT_DIR)
+
+# Update PATH_TO_OUTPUT_DIR based on the parameters and make sure subidrectories exist
+PATH_TO_OUTPUT_DIR += f"{QUEUE_SIZE}/"
+if not os.path.isdir(PATH_TO_OUTPUT_DIR):
+    os.mkdir(PATH_TO_OUTPUT_DIR)
+
+PATH_TO_OUTPUT_DIR += f"{OPT_LEVEL}/"
+if not os.path.isdir(PATH_TO_OUTPUT_DIR):
+    os.mkdir(PATH_TO_OUTPUT_DIR)
+
 
 N_RANGE = [2 * int(1e5)]
 
@@ -63,7 +73,6 @@ def run_test_for_dir(main_dir: str, size: int) -> None:
     bin_file_path = f"{bin_path}_generated_{size}_{main_dir}"
 
     for num_iter in range(NUM_ITERATIONS):
-        print(f"Iter {num_iter}...")
         jdsl_command = f"/usr/bin/time {JDSL_RUN_PATH} {bin_file_path}"
         jdsl_command = jdsl_command.split()
 
@@ -73,7 +82,6 @@ def run_test_for_dir(main_dir: str, size: int) -> None:
 
         result = None
         try:
-            result = "Masked"
             results = subprocess.run(jdsl_command, stdout=output_file, stderr=output_file, timeout=55)
             results.check_returncode()
         except Exception as e:
@@ -83,27 +91,18 @@ def run_test_for_dir(main_dir: str, size: int) -> None:
                 result = "Timeout"
 
         
-        try:
-            if file_has_content(output_file_path, "unexpected"):
-                result = "Detected"
-            if was_error_inserted(output_file_path):
-                is_valid = True
-            else:
-                is_valid = False
-        except Exception as e:
-            assert type(e) == UnicodeDecodeError
+        if file_has_content(output_file_path, "unexpected"):
+            result = "Detected"
+        if was_error_inserted(output_file_path)
             is_valid = True
-            result = "Corrupted"
+        else:
+            is_valid = False
 
         if is_valid:
-            results_filename = f"results_{main_dir}_{size}_{ERROR_DETECTION}.txt"
+            results_filename = f"{main_dir}_{size}_results_{ERROR_DETECTION}.txt"
             results_file_path = f"{PATH_TO_OUTPUT_DIR}{main_dir}/{size}/{results_filename}"
-            results_file = open(results_file_path, "a")
-            results_file.write(result + "\n")
-
-            print(result)
-        else:
-            print("Skipping")
+            reuslts_file = open(results_file_path, "a")
+            results.write(result + "\n")
 
         if main_dir == "file_system_interaction":
             remove_fs_interaction_output()
@@ -121,4 +120,6 @@ def main():
     run_tests_for_dir(MAIN_DIR)
 
 if __name__ == "__main__":
+    print(f"Running {NUM_ITERATIONS} iterations per (binary, input_size) pair")
+    print(f"Optimisations: {OPT_LEVEL}")
     main()
