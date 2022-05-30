@@ -70,7 +70,7 @@ def update_dsl_core_file() -> None:
         for line in core_file:
             new_line = line
             if call_rule_handler_decl in line and ";" not in line:
-                new_line += "    return;\n"
+                new_line += "    ERRONEOUS_THREAD_ROLE = ThreadRole::MAIN;\n    return;\n"
 
             new_file_content += new_line
 

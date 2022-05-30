@@ -9,24 +9,38 @@ PATH_TO_BENCHMARK = "/janus_project/comet_benchmark/"
 PATH_TO_OUTPUT_DIR = "/janus_project/all_output_error_detection/"
 JDSL_RUN_PATH = "/janus_project/janus/jdsl_run"
 
+MAIN_DIR_TO_EXPECTED_OUTPUT = {
+    "con_comps": "100\n",
+    "expr_evaluator": "4787\n",
+    "file_system_interaction": "200000\n",
+    "matrix_mult": "396\n",
+    "merge_sort": "OK: 1\n",
+    "pi_approximation": "3.14159\n",
+    "prime_numbers": "33860\n",
+    "vector": "80000200000\n",
+}
+
 
 MAIN_DIR = sys.argv[1]
 ERROR_DETECTION = "EC" if int(sys.argv[2]) else "NO_EC"
+EXPECTED_CNT = 2 if ERROR_DETECTION == "EC" else 1
 NUM_ITERATIONS = int(sys.argv[3])
 
 # Make sure "all_output" directory exists
 if not os.path.isdir(PATH_TO_OUTPUT_DIR):
     os.mkdir(PATH_TO_OUTPUT_DIR)
 
-N_RANGE = [2 * int(1e5)]
+N_RANGE = [4 * int(1e5)]
 
-def file_has_content(file_path: str, content: str) -> bool:
+
+def find_content(file_path: str, content: str) -> int:
+    cnt = 0
     with open(file_path) as input_file:
         for line in input_file:
             if content in line:
-                return True
+                cnt += 1
 
-    return False
+    return cnt 
 
 
 def was_error_inserted(file_path: str) -> bool:
@@ -57,6 +71,8 @@ def remove_fs_interaction_output() -> None:
 def run_test_for_dir(main_dir: str, size: int) -> None:
     create_output_dir_for_size(main_dir, size)
 
+    max_timeout = 15 if main_dir == "mult_matrix" else 5
+
     curr_path = PATH_TO_BENCHMARK + main_dir
     bin_path = curr_path + "/bin/"
     bin_file_path = f"{bin_path}_generated_{size}_{main_dir}"
@@ -66,14 +82,14 @@ def run_test_for_dir(main_dir: str, size: int) -> None:
         jdsl_command = f"/usr/bin/time {JDSL_RUN_PATH} {bin_file_path}"
         jdsl_command = jdsl_command.split()
 
-        output_filename = f"{main_dir}_{size}_{ERROR_DETECTION}.txt"
+        output_filename = f"{main_dir}_{size}_{ERROR_DETECTION}_{num_iter}.txt"
         output_file_path = f"{PATH_TO_OUTPUT_DIR}{main_dir}/{size}/{output_filename}"
         output_file = open(output_file_path, "w")
 
         result = None
         try:
             result = "Masked"
-            results = subprocess.run(jdsl_command, stdout=output_file, stderr=output_file, timeout=55)
+            results = subprocess.run(jdsl_command, stdout=output_file, stderr=output_file, timeout=max_timeout)
             results.check_returncode()
         except Exception as e:
             if type(e) == subprocess.CalledProcessError:
@@ -83,8 +99,13 @@ def run_test_for_dir(main_dir: str, size: int) -> None:
 
         
         try:
-            if file_has_content(output_file_path, "unexpected"):
+            if find_content(output_file_path, "unexpected"):
                 result = "Detected"
+            elif (
+                result == "Masked" and find_content(output_file_path, MAIN_DIR_TO_EXPECTED_OUTPUT[main_dir]) < EXPECTED_CNT
+            ):
+                print(f"                ==== WRONG OUTPUT at {num_iter=}")
+                result = "Wrong output"
             if was_error_inserted(output_file_path):
                 is_valid = True
             else:

@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import subprocess
-import sys
 
 MAIN_DIRECTORIES = [
     "con_comps",
@@ -14,7 +13,7 @@ MAIN_DIRECTORIES = [
     "vector"
 ]
 
-NUM_ITERATIONS = 3
+NUM_ITERATIONS = 110
 
 def build_and_run(main_dir: str, with_error_detection: int) -> None:
     print(f"Building for {main_dir=}")
@@ -30,7 +29,7 @@ def build_and_run(main_dir: str, with_error_detection: int) -> None:
 
 
 def main():
-    for with_error_detection in [1, 0]:
+    for with_error_detection in [0]:
         for main_dir in MAIN_DIRECTORIES:
             build_and_run(main_dir, with_error_detection)
 
