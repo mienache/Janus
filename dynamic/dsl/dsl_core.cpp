@@ -23,9 +23,9 @@
 #include "handler.h"
 
 //#define PRINT_SIG_HANDLER_INFO
-#define PRINT_PROCESSING_BASIC_BLOCK
+//#define PRINT_PROCESSING_BASIC_BLOCK
 //#define PRINT_QUEUE_PTRS
-#define PRINT_BB_TO_FILE
+//#define PRINT_BB_TO_FILE
 
 extern std::vector <instr_t*> instructions_to_remove;
 
