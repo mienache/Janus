@@ -9,8 +9,8 @@
 #include "dsl_thread_manager.h"
 #include "util.h"
 
-const int EXPECTED_MAIN_BB_CNT = 59;
-const int EXPECTED_CHECKER_BB_CNT = 38;
+const int EXPECTED_MAIN_BB_CNT = 48;
+const int EXPECTED_CHECKER_BB_CNT = 27;
 int EXPECTED_BB_CNT; 
 
 int MAIN_BB_CNT;
@@ -19,8 +19,12 @@ ThreadRole ERRONEOUS_THREAD_ROLE;
 int BB_WITH_ERROR;
 bool ERROR_INSERTED = 0;
 
-void insert_error(void *drcontext, instrlist_t *bb)
+bool insert_error(void *drcontext, instrlist_t *bb)
 {
+    if (ERROR_INSERTED) {
+        return 0;
+    }
+
     int seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine generator(seed);
 
@@ -29,10 +33,9 @@ void insert_error(void *drcontext, instrlist_t *bb)
     if (cnt < 1) {
         // Basic block does not have instructions with destination as register, can't
         // insert error error
-        return;
+        return 0;
     }
 
-    std::uniform_int_distribution<int> distribution(1, cnt);
     const int index = distribution(generator); // Index of instruction with error
     instr_t *i = get_instr_with_reg_dsts_at_idx(bb, index);
     assert(i);
@@ -40,8 +43,9 @@ void insert_error(void *drcontext, instrlist_t *bb)
     opnd_t dest = instr_get_dst(i, 0);
     const int num_bits = opnd_size_in_bits(opnd_get_size(dest));
 
+
     std::uniform_int_distribution<int> distribution2(1, num_bits);
-    int err_bit = distribution(generator);
+    int err_bit = distribution2(generator);
 
     if (err_bit >= 32) {
         err_bit = 31;
@@ -60,6 +64,8 @@ void insert_error(void *drcontext, instrlist_t *bb)
     instrlist_postinsert(bb, i, xor_instr);
 
     ERROR_INSERTED = 1;
+
+    return 1;
 }
 
 ThreadRole gen_thread_with_error()

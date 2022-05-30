@@ -282,12 +282,16 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
     if (curr_thread->threadRole == ThreadRole::MAIN) {
         ++MAIN_BB_CNT;
         if (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN && MAIN_BB_CNT == BB_WITH_ERROR) {
-            insert_error(drcontext, bb);
+            if(!insert_error(drcontext, bb)) {
+                ++BB_WITH_ERROR;
+            }
         }
     }
     else {
         if (ERRONEOUS_THREAD_ROLE == ThreadRole::CHECKER && CHECKER_BB_CNT == BB_WITH_ERROR) {
-            insert_error(drcontext, bb);
+            if(!insert_error(drcontext, bb)) {
+                ++BB_WITH_ERROR;
+            }
         }
         ++CHECKER_BB_CNT;
     }

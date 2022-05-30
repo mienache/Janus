@@ -28,7 +28,7 @@ extern bool ERROR_INSERTED; // Global boolean representing whether the error was
 // For example: I = dest_reg = dest_reg + 10
 // `dest_reg = dest_reg xor t` is inserted after I.
 // `t` is a power of 2 randomly generated using the number of bits of `dest_reg`
-void insert_error(void *drcontext, instrlist_t *bb);
+bool insert_error(void *drcontext, instrlist_t *bb);
 
 // Return the role of the thread that will have the error
 // Also set the `EXPECTED_BB_CNT` variable to be that of MAIN or CHECKER, depending
