@@ -36,6 +36,7 @@ bool insert_error(void *drcontext, instrlist_t *bb)
         return 0;
     }
 
+    std::uniform_int_distribution<int> distribution(1, cnt);
     const int index = distribution(generator); // Index of instruction with error
     instr_t *i = get_instr_with_reg_dsts_at_idx(bb, index);
     assert(i);
