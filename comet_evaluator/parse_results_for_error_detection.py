@@ -8,7 +8,7 @@ from typing import Dict
 
 PATH_TO_OUTPUT_DIR = "/janus_project/all_output_error_detection/"
 
-NUM_ITERATIONS = 5
+NUM_ITERATIONS = 100
 
 assert os.path.isdir(PATH_TO_OUTPUT_DIR)
 
@@ -81,7 +81,7 @@ def main():
     for ed in [0, 1]:
         all_results[ed] = parse_results_for_error_detection(ed)
 
-    save_dict_to_file(all_results, "results_error_detection_200k.dict")
+    save_dict_to_file(all_results, "results_error_detection_400k.dict")
 
     for main_dir in MAIN_DIRECTORIES:
         print(f"   ==== For {main_dir=} ====")

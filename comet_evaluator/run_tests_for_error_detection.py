@@ -16,7 +16,7 @@ MAIN_DIR_TO_EXPECTED_OUTPUT = {
     "matrix_mult": "396\n",
     "merge_sort": "OK: 1\n",
     "pi_approximation": "3.14159\n",
-    "prime_numbers": "33860\n",
+    "prime_numbers": "Eratosthenes: 33860",
     "vector": "80000200000\n",
 }
 
