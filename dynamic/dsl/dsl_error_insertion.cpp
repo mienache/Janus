@@ -9,8 +9,8 @@
 #include "dsl_thread_manager.h"
 #include "util.h"
 
-const int EXPECTED_MAIN_BB_CNT = 48;
-const int EXPECTED_CHECKER_BB_CNT = 27;
+const int EXPECTED_MAIN_BB_CNT = 59;
+const int EXPECTED_CHECKER_BB_CNT = 38;
 int EXPECTED_BB_CNT; 
 
 int MAIN_BB_CNT;
@@ -41,7 +41,12 @@ bool insert_error(void *drcontext, instrlist_t *bb)
     instr_t *i = get_instr_with_reg_dsts_at_idx(bb, index);
     assert(i);
 
-    opnd_t dest = instr_get_dst(i, 0);
+    int dest_index = 0;
+    if (instr_num_dsts(i) > 1) {
+        dest_index = 1;
+    }
+
+    opnd_t dest = instr_get_dst(i, dest_index);
     const int num_bits = opnd_size_in_bits(opnd_get_size(dest));
 
 
