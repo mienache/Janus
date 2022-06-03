@@ -27,6 +27,8 @@
 //#define PRINT_QUEUE_PTRS
 //#define PRINT_BB_TO_FILE
 
+const bool DO_ERROR_INSERTION = 0;
+
 extern std::vector <instr_t*> instructions_to_remove;
 
 std::atomic<int> sigsegv_cnt;
@@ -101,8 +103,10 @@ void new_janus_thread(void *drcontext) {
         main_thread = register_thread("main", drcontext);
         IPC_QUEUE_2->last_thread_changed = main_thread->pid;
 
-        ERRONEOUS_THREAD_ROLE = gen_thread_with_error();
-        BB_WITH_ERROR = gen_bb_with_error();
+        if (DO_ERROR_INSERTION) {
+            ERRONEOUS_THREAD_ROLE = gen_thread_with_error();
+            BB_WITH_ERROR = gen_bb_with_error();
+        }
 
     }
     else {
@@ -125,11 +129,13 @@ void exit_janus_thread(void *drcontext) {
 
     if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::MAIN) {
         std::cout << "MAIN thread leaving." << std::endl;
-
         std::cout << "MAIN NUM BBs = " << MAIN_BB_CNT << std::endl;
-        string tmp = (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN) ? "MAIN" : "CHECKER";
-        std::cout << "Thread with error " << tmp << std::endl;
-        std::cout << "BB " << BB_WITH_ERROR << std::endl;
+
+        if (DO_ERROR_INSERTION) {
+            string tmp = (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN) ? "MAIN" : "CHECKER";
+            std::cout << "Thread with error " << tmp << std::endl;
+            std::cout << "BB " << BB_WITH_ERROR << std::endl;
+        }
     }
     else if (app_threads[dr_get_thread_id(drcontext)]->threadRole == ThreadRole::CHECKER) {
         std::cout << "CHECKER thread leaving." << std::endl;
@@ -281,14 +287,14 @@ event_basic_block(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, b
 
     if (curr_thread->threadRole == ThreadRole::MAIN) {
         ++MAIN_BB_CNT;
-        if (ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN && MAIN_BB_CNT == BB_WITH_ERROR) {
+        if (DO_ERROR_INSERTION && ERRONEOUS_THREAD_ROLE == ThreadRole::MAIN && MAIN_BB_CNT == BB_WITH_ERROR) {
             if(!insert_error(drcontext, bb)) {
                 ++BB_WITH_ERROR;
             }
         }
     }
     else {
-        if (ERRONEOUS_THREAD_ROLE == ThreadRole::CHECKER && CHECKER_BB_CNT == BB_WITH_ERROR) {
+        if (DO_ERROR_INSERTION && ERRONEOUS_THREAD_ROLE == ThreadRole::CHECKER && CHECKER_BB_CNT == BB_WITH_ERROR) {
             if(!insert_error(drcontext, bb)) {
                 ++BB_WITH_ERROR;
             }
