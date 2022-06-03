@@ -1,3 +1,5 @@
+Make sure you are on the `modifying-cinnamon` branch.
+
 ==== OPTION A: Using Docker containers
   
 0) Mount the `janus` path on your local file system
