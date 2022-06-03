@@ -1,0 +1,32 @@
+==== OPTION A: Using Docker containers
+  
+0) Mount the `janus` path on your local file system
+by updating the `run_container.sh` script (change the `/c/uni_work/...`
+to the path on your system).
+
+1) Start a Docker container;
+
+$ ./run_container.sh
+
+2) Create build directory: 
+$ mkdir build
+
+3) Run CMake: 
+
+$ cd build && cmake .. && cd ..
+  
+4) Compile:
+
+$ ./run_make
+
+5) From inside Docker container, run e.g:
+
+$ ./janus/jdsl_run <your_binary>
+
+(Make sure you have at least 2 cores available,
+otherwise remove `taskset --cpu-list 1-2` from the jdsl_run script)
+
+==== OPTION B: Without Docker containers
+
+A Docker container is not required, you can run this directly if you use Linux.
+																	     ~                                                           
