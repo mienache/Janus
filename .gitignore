@@ -9,4 +9,5 @@ docs/*
 *.cmake
 comet_benchmark/*
 all_output/*
+all_output_error_detection/*
 comet_evaluator/expr_input/*.txt
