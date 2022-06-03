@@ -25,15 +25,7 @@ bool REG_PROM_OPT = 1;
 bool OFFSET_FUSION_OPT = 1;
 bool DYNAMIC_OFFSET_OPT = 0;
 
-//const int DEFAULT_QUEUE_SIZE = 1e8;
-//const int DEFAULT_QUEUE_SIZE = 1e7;
-//const int DEFAULT_QUEUE_SIZE = 2500000;
-//const int DEFAULT_QUEUE_SIZE = 5 * (1e5);
 const int DEFAULT_QUEUE_SIZE = 1375744;
-//const int DEFAULT_QUEUE_SIZE = 2 * (1e5);
-//const int DEFAULT_QUEUE_SIZE = 1e5;
-//const int DEFAULT_QUEUE_SIZE = 50000;
-//const int DEFAULT_QUEUE_SIZE = 5000;
 
 #ifdef SUPPORT_SIMD_REGISTERS
 const int INCREMENT = 16;
@@ -108,10 +100,6 @@ void add_instrumentation_for_comet_enqueue(JANUS_CONTEXT, CometQueue *queue)
 
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
-
-    if (!trigger) { // TODO: remove this check in the future
-        return;
-    }
 
     #ifdef PRINT_TRIGGER_INSTR
     std::cout << "    Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
@@ -406,7 +394,6 @@ void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue)
         }
         #endif
 
-        // instrlist_remove(bb, trigger);
         instructions_to_remove.push_back(trigger);
     }
     else {
@@ -417,7 +404,6 @@ void add_instrumentation_for_comet_dequeue(JANUS_CONTEXT, CometQueue *queue)
 
         instr_t *cmp_instr;
         if (reg_is_simd(reg)) {
-            // COMISD works on 8 bytes, must readjust the dequeue location
             dequeue_location = opnd_create_base_disp(queue_ptr_reg, DR_REG_NULL, 0, 0, OPSZ_8);
             cmp_instr = INSTR_CREATE_comisd(drcontext, dest, dequeue_location);
         }
@@ -527,11 +513,6 @@ void checker_cmp_instr_handler(JANUS_CONTEXT)
         instrlist_meta_postinsert(bb, trigger, restore_queue_reg_instr);
     }
 
-    #ifdef INSERT_DEBUG_CLEAN_CALLS
-    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
-    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr2, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
-    #endif
-
     instructions_to_remove.push_back(trigger);
 }
 
@@ -591,11 +572,8 @@ void instrument_last_instr_for_reg_prom(void*drcontext, instrlist_t *bb)
 
     if (IPC_QUEUE_2->addr_offset_fusion_opt && curr_thread->curr_disp) {
         if (IPC_QUEUE_2->dynamic_increment_opt) {
-            // std::cout << curr_thread->pid << " - cur_disp before modifying = " << curr_thread->curr_disp << std::endl;
             adjust_curr_disp(curr_thread, opnd_size_from_bytes(INCREMENT));
         }
-
-        // std::cout << curr_thread->pid << " - curr_disp at end of block: " << curr_thread->curr_disp << std::endl;
 
         instr_t *adjust_queue_reg = XINST_CREATE_add(
             drcontext,
@@ -610,45 +588,10 @@ void instrument_last_instr_for_reg_prom(void*drcontext, instrlist_t *bb)
     instrlist_preinsert(bb, last_instr, restore_queue_reg_instr); // Second
 }
 
-/*
-void insert_instrs_for_new_queue_reg(void *drcontext, instrlist_t *bb, instr_t* trigger, reg_id_t new_queue_ptr_reg)
-{
-    std::cout << "Start inserting instrs for new queue reg" << std::endl;
-
-    const pid_t tid = dr_get_thread_id(drcontext);
-    AppThread *curr_thread = app_threads[tid];
-    int64_t *spill_slot1 = &(curr_thread->spill_slots[QUEUE_PTR_SPILL_SLOT_INDEX]);
-    int64_t *spill_slot2 = &(curr_thread->spill_slots[TMP_REG_SPILL_SLOT_INDEX_1]);
-
-    instr_t* spill_new_queue_reg_instr = create_spill_reg_instr(drcontext, new_queue_ptr_reg, spill_slot2);
-    instr_t *mov_to_new_queue_reg_instr = XINST_CREATE_load(drcontext, opnd_create_reg(new_queue_ptr_reg), opnd_create_reg(QUEUE_PTR_REG));
-    instr_t *restore_queue_reg_instr = create_restore_reg_instr(drcontext, QUEUE_PTR_REG, spill_slot1);
-    instrlist_preinsert(bb, trigger, spill_new_queue_reg_instr);
-    instrlist_preinsert(bb, trigger, mov_to_new_queue_reg_instr);
-    instrlist_preinsert(bb, trigger, restore_queue_reg_instr);
-
-    instr_t* spill_queue_reg_instr = create_spill_reg_instr(drcontext, QUEUE_PTR_REG, spill_slot1);
-    instr_t* mov_from_new_queue_reg_instr = XINST_CREATE_load(drcontext, opnd_create_reg(QUEUE_PTR_REG), opnd_create_reg(new_queue_ptr_reg));
-    instr_t* restore_new_queue_reg_instr = create_restore_reg_instr(drcontext, new_queue_ptr_reg, spill_slot2);
-    instrlist_postinsert(bb, trigger, restore_new_queue_reg_instr);
-    instrlist_postinsert(bb, trigger, mov_from_new_queue_reg_instr);
-    instrlist_postinsert(bb, trigger, spill_queue_reg_instr);
-
-    std::cout << "Finished inserting instrs for new queue reg" << std::endl;
-
-
-    // TODO: spill/restore new_queue_ptr_reg only if needed
-}
-*/
-
 void reg_prom_main_handler(JANUS_CONTEXT, CometQueue *queue)
 {
     instr_t *trigger = get_trigger_instruction(bb,rule);
     uint64_t bitmask = rule->reg1;
-
-    if (!trigger) { // TODO: remove this check in the future
-        return;
-    }
 
     #ifdef PRINT_TRIGGER_INSTR
     std::cout << "    Trigger instruction: " << (void*) instr_get_app_pc(trigger) << std::endl;
@@ -905,7 +848,6 @@ void reg_prom_checker_handler(JANUS_CONTEXT, CometQueue *queue)
         }
         #endif
 
-        // instrlist_remove(bb, trigger);
         instructions_to_remove.push_back(trigger);
     }
     else {
@@ -916,7 +858,6 @@ void reg_prom_checker_handler(JANUS_CONTEXT, CometQueue *queue)
 
         instr_t *cmp_instr;
         if (reg_is_simd(reg)) {
-            // COMISD works on 8 bytes, must readjust the dequeue location
             dequeue_location = (
                 IPC_QUEUE_2->addr_offset_fusion_opt ? 
                 opnd_create_base_disp(new_queue_ptr_reg, DR_REG_NULL, 0, curr_thread->curr_disp, OPSZ_8) :
@@ -1016,11 +957,6 @@ void reg_prom_checker_cmp_instr_handler(JANUS_CONTEXT)
     if (!IPC_QUEUE_2->addr_offset_fusion_opt) {
         instrlist_postinsert(bb, trigger, increment_queue_reg_instr);
     }
-
-    #ifdef INSERT_DEBUG_CLEAN_CALLS
-    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr1, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 0));
-    //dr_insert_clean_call(drcontext, bb, increment_queue_reg_instr2, after_dequeue_debug, 0, 1, instr_get_src(new_cmp, 1));
-    #endif
 
     instructions_to_remove.push_back(trigger);
 }
