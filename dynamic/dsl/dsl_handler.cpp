@@ -47,54 +47,7 @@ void thread_creation_handler(JANUS_CONTEXT){
         return;
     #endif
 
-    std::cout << "Instrumenting through thread creation handler" << std::endl;
-
-    instr_t *trigger = get_trigger_instruction(bb,rule);
-    if (!trigger) {
-        return;
-    }
-
-
-    if (checker_thread && dr_get_thread_id(drcontext) == checker_thread->pid) {
-        std::cout << "CHECKER thread reaches rule for thread creation but will skip instrumenting." << std::endl;
-        return;
-    }
-
-    std::cout << "MAIN thread now adding instrumentation code for generating CHECKER thread" << std::endl;
-
-    do_pre_thread_creation_maintenance(janus_context);
-
-    // TODO: in the future we will need to save the RDI register on the stack
-    // but for now this works as the thread creation only happens at the beginning of the
-    // main function. Note that R14 and R15 will also need to be saved as per the
-    // instructions of `insert_function_call_as_application`.
-
-    instr_t *instr = XINST_CREATE_load(
-        drcontext,
-        opnd_create_reg(DR_REG_RDI),
-        OPND_CREATE_ABSMEM((byte *) &checker_thread, OPSZ_8)
-    );
-    instrlist_meta_preinsert(bb, trigger, instr);
-
-    instr = XINST_CREATE_move(
-        drcontext,
-        opnd_create_reg(DR_REG_RSI),
-        opnd_create_reg(DR_REG_RSP)
-    );
-    instrlist_meta_preinsert(bb, trigger, instr);
-
-    // IMPORTANT!
-    // HERE WE INSERT THE FUNCTION CALL AS APPLICATION, USING THE DYNAMIC/CORE LIBRARY
-    insert_function_call_as_application(janus_context, (void*) run_thread);
-
-
-    // Just printing the modified basic block to identify the file easier
-    /*
-    app_pc tag_new = instr_get_app_pc(instrlist_first_app(bb));
-    file_t output_file = dr_open_file("instructions.txt", DR_FILE_WRITE_OVERWRITE);
-    instrlist_disassemble(drcontext, tag_new, bb, output_file);
-    dr_close_file(output_file);
-    */
+    add_instrumentation_for_thread_creation(janus_context);
 }
 
 void main_handler(JANUS_CONTEXT) {
