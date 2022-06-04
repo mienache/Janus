@@ -85,13 +85,10 @@ void run_thread(void *raw_app_thread) {
 
 void* alloc_thread_stack(size_t size)
 {
-    void *p = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
-    // TODO: assert
+    void *stack_end = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+    assert (stack_end);
 
-    // stack grows from high to low addresses 
-    size_t sp = (size_t)p + size;
-
-    return (void*) sp;
+    return stack_end + size;
 }
 
 AppThread* register_thread(const char *thread_role_as_str, void *drcontext)
